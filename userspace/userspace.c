@@ -176,7 +176,21 @@ static size_t do_network(config_t* config, size_t epoll_off) {
 			}
 			fprintf(stdout, "epoll_ctl() %zu\n", ret);
 
-			for (;;) {}
+			size_t max_epoll_events = 1024;
+			struct epoll_event ev, events[1];
+
+			size_t numfds = 0;
+			if ((numfds = epoll_wait(epfd, events, max_epoll_events, -1)) == -1) {
+				fprintf(stderr, "epoll_wait() -1 %s\n", strerror(errno));
+				return 1;
+			}
+
+			if ((size_t)events[0].data.fd == sockfd) {
+				fprintf(stdout, "events got listen sockfd");
+				ev.events = EPOLLIN | EPOLLET;
+			}
+
+			// for (;;) {}
 
 			close(epfd);
 		}
@@ -199,7 +213,7 @@ int main(int argc, char **argv)
         case 'd':
             debug = 1;
             break;
-				case 'e':
+        case 'e':
             epoll_off = 1;
             break;
         case 'c':
