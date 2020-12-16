@@ -34,14 +34,14 @@ static char* read_file(const char* filename) {
 
 static config_t* allocate_config(config_t* config) {
 	config = malloc(sizeof(config_t));
-	size_t buf_size = 1024; // FIXME: will overflow on large file
 	config->port = (char*)malloc(sizeof(char));
 	config->address = (char*)malloc(sizeof(char));
-	config->css = (char*)malloc(buf_size);
-	config->html = (char*)malloc(buf_size);
+	config->css = (char*)malloc(sizeof(char));
+	config->html = (char*)malloc(sizeof(char));
 
 	if (config->port == NULL || config->address == NULL || config->css == NULL || config->html == NULL) {
 		fprintf(stderr, "allocate_config malloc error\n");
+		free(config);
 		return NULL;
 	}
 	return config;
@@ -72,22 +72,23 @@ static config_t* read_config(const char* filename) {
 		return NULL;
 	}
 
-	char* line = strtok(file, "\n");
+	char* strtok_saveptr = NULL;
+	char* line = strtok_r(file, "\n", &strtok_saveptr);
 	while (line != NULL)
 	{
-		if (sscanf(line, "address = %s\n", config->address) == 1) {
+		if (sscanf(line, "address = %14s\n", config->address) == 1) {
 			fprintf(stdout, "scanned address %s\n", config->address);
 		}
-		if (sscanf(line, "port = %s\n", config->port) == 1) {
+		if (sscanf(line, "port = %4s\n", config->port) == 1) {
 			fprintf(stdout, "scanned port %s\n", config->port);
 		}
-		if (sscanf(line, "css = %s\n", config->css) == 1) {
+		if (sscanf(line, "css = %63s\n", config->css) == 1) {
 			fprintf(stdout, "scanned css %s\n", config->css);
 		}
-		if (sscanf(line, "html = %s\n", config->html) == 1) {
+		if (sscanf(line, "html = %63s\n", config->html) == 1) {
 			fprintf(stdout, "scanned html %s\n", config->html);
 		}
-		line = strtok(NULL, "\n");
+		line = strtok_r(NULL, "\n", &strtok_saveptr);
 	}
 
 	fprintf(stdout, "read_config address: %s port: %s css: %s html: %s\n", config->address, config->port, config->css, config->html);
@@ -133,7 +134,7 @@ static size_t do_network(config_t* config, size_t epoll_off) {
 	}
 
 	struct sockaddr_in my_addr;
-	bzero(&my_addr, sizeof(struct sockaddr_in));
+	memset(&my_addr, 0, sizeof(struct sockaddr_in));
 
 	my_addr.sin_family = AF_INET;
 	size_t port_strlen = strlen(config->port);
@@ -174,7 +175,7 @@ static size_t do_network(config_t* config, size_t epoll_off) {
 			for (;;) {}
 
 		} else {
-			size_t epfd = 0;
+			ssize_t epfd = 0;
 			if ((epfd = epoll_create(1)) == -1) {
 				fprintf(stderr, "epoll_create() -1 %s\n", strerror(errno));
 				return 1;
@@ -182,7 +183,7 @@ static size_t do_network(config_t* config, size_t epoll_off) {
 			fprintf(stdout, "epoll_create() %zu\n", epfd);
 
 			struct epoll_event event = { .events = EPOLLIN, .data.fd = sockfd };
-			size_t ret = 0;
+			ssize_t ret = 0;
 			if ((ret = epoll_ctl(epfd, EPOLL_CTL_ADD, event.data.fd, &event)) == -1) {
 				fprintf(stderr, "epoll_ctl() -1 %s\n", strerror(errno));
 				return 1;
@@ -191,10 +192,10 @@ static size_t do_network(config_t* config, size_t epoll_off) {
 
 			#define MAX_EPOLL_EVTS 1024
 			struct epoll_event ev, events[MAX_EPOLL_EVTS];
-			bzero(&ev, sizeof(struct epoll_event));
-			bzero(&events, ARRAY_SIZE(events));
+			memset(&ev, 0, sizeof(struct epoll_event));
+			memset(&events, 0, sizeof(events));
 
-			size_t numfds = 0;
+			ssize_t numfds = 0;
 			for (;;) {
 				if ((numfds = epoll_wait(epfd, events, MAX_EPOLL_EVTS, -1)) == -1) {
 					fprintf(stderr, "epoll_wait() -1 %s\n", strerror(errno));
@@ -204,7 +205,7 @@ static size_t do_network(config_t* config, size_t epoll_off) {
 				for (size_t i = 0; i < MAX_EPOLL_EVTS; ++i) {
 					if (events[i].data.fd == (int)sockfd) {
 						fprintf(stdout, "events got listen sockfd\n");
-						size_t accept_sockfd = 0;
+						ssize_t accept_sockfd = 0;
 						if ((accept_sockfd = accept(sockfd, (struct sockaddr *) &my_addr, &sockaddr_size)) == -1) {
 							fprintf(stderr, "accept() -1 %s\n", strerror(errno));
 							return 1;
@@ -215,7 +216,7 @@ static size_t do_network(config_t* config, size_t epoll_off) {
 						}
 						ev.events = EPOLLIN | EPOLLET;
 						ev.data.fd = accept_sockfd;
-						size_t epoll_ret = 0;
+						ssize_t epoll_ret = 0;
 						if ((epoll_ret = epoll_ctl(epfd, EPOLL_CTL_ADD, ev.data.fd, &ev)) == -1) {
 							fprintf(stderr, "accept epoll_ctl() -1 %s\n", strerror(errno));
 							return 1;
@@ -290,7 +291,8 @@ static size_t do_network(config_t* config, size_t epoll_off) {
 int main(int argc, char **argv)
 {
     char *config = NULL;
-    size_t debug = 0, epoll_off = 0, opt = 0;
+    ssize_t opt = 0;
+    size_t debug = 0, epoll_off = 0;
     size_t nsecs = 0, tfnd = 0;
 
     while ((opt = getopt(argc, argv, "nc:t:de")) != -1) {
@@ -334,7 +336,7 @@ int main(int argc, char **argv)
 			fprintf(stdout, "config=%s\n", config);
 			config_t* config_str = read_config(config);
 
-			if (config_str) {
+			if (config_str != NULL) {
 				if (do_network(config_str, epoll_off)) {
 					fprintf(stderr, "do_network() error\n");
 				}
