@@ -234,6 +234,7 @@ static size_t do_network(config_t* config, size_t epoll_off) {
 
 							if (nread < 0 && (errno == EINTR || errno == EWOULDBLOCK))
 								continue;
+
 							if (nread < 0) {
 								fprintf(stderr, "read() %s\n", strerror(errno));
 								return 1;
@@ -244,18 +245,39 @@ static size_t do_network(config_t* config, size_t epoll_off) {
 								return 0;
 							}
 
+							if (nread > 0) {
+								fprintf(stdout, "read_buf() %s\n", read_buf);
+
+								size_t write_buf_size = 1024;
+								char* write_buf = (char*)malloc(write_buf_size);
+								if (write_buf == NULL) {
+									fprintf(stderr, "write_buf malloc error\n");
+									return 1;
+								}
+
+								static const char* rcvd_ok = "Apache 2.2.222 received OK %s\n";
+								sprintf(write_buf, rcvd_ok, read_buf);
+
+								if (write(accept_sockfd, write_buf, (strlen(rcvd_ok) + nread)) > 0) {
+									fprintf(stdout, rcvd_ok, read_buf);
+								}
+
+								free(write_buf);
+							}
+
 								read_buf_size -= nread;
 								read_buf += nread;
 						} while ((read_buf_size - 1) > 0);
 
+						free(read_buf);
 
 					} else {
 						fprintf(stderr, "epoll sockfd empty %d\n", events[i].data.fd);
 					}
 				}
 			}
-			close(epfd);
 			#undef MAX_EPOLL_EVTS
+			close(epfd);
 		}
 	#endif
 
