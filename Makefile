@@ -51,4 +51,4 @@ build_bin: $(CLANG)
 	$(CLANG) $(CLANG_FLAGS_PROJECT) $(CLANG_INCLUDES_PROJECT) $(PROJECT_SRC_DIR)/main.c -o $(PROJECT_OBJECT)
 
 clean:
-	rm -f $(PROJECT_OBJECT)
+	rm -f $(PROJECT_OBJECT) a.out main.o main.plist
