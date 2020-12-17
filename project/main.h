@@ -14,13 +14,7 @@
 #include <sys/epoll.h>
 #endif
 
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+#include "config.h"
+#include "network.h"
 
-typedef struct __attribute__ ((aligned))
-{
-    char* port;
-    char* address;
-    char* css;
-    char* html;
-}
-config_t;
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
