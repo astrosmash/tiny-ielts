@@ -6,6 +6,10 @@ static config_t* read_config(const char*);
 static size_t do_network(config_t*, size_t);
 static size_t set_sock_opts(size_t);
 
+#ifdef __linux__
+static size_t write_epoll_fd(struct epoll_event* ev);
+#endif
+
 
 static char* read_file(const char* filename) {
 	fprintf(stdout, "read_file(%s)\n", filename);
@@ -103,12 +107,74 @@ static size_t set_sock_opts(size_t sockfd) {
 		return 1;
 	}
 	size_t one = 1;
+	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) == -1) {
+		fprintf(stderr, "setsockopt() -1 %s\n", strerror(errno));
+		return 1;
+	}
 	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one)) == -1) {
 		fprintf(stderr, "setsockopt() -1 %s\n", strerror(errno));
 		return 1;
 	}
 	return 0;
 }
+
+#ifdef __linux__
+static size_t write_epoll_fd(struct epoll_event* ev) {
+	size_t read_buf_size = 1024;
+	char* read_buf = (char*)malloc(read_buf_size);
+	if (read_buf == NULL) {
+		fprintf(stderr, "write_epoll_fd() read_buf malloc error\n");
+		return 1;
+	}
+
+	// do {
+		ssize_t nread = 0;
+		nread = read(ev->data.fd, read_buf, (read_buf_size - 1));
+
+		if (nread < 0 && (errno == EINTR || errno == EWOULDBLOCK)) {
+			free(read_buf);
+			return 0;
+		}
+
+		if (nread < 0) {
+			fprintf(stderr, "write_epoll_fd() read() %s\n", strerror(errno));
+			free(read_buf);
+			return 1;
+		}
+
+		if (nread == 0) {
+			fprintf(stdout, "write_epoll_fd() read() closed socket\n");
+			free(read_buf);
+			return 0;
+		}
+
+		fprintf(stdout, "write_epoll_fd() read_buf() %s\n", read_buf);
+
+		size_t write_buf_size = 1024;
+		char* write_buf = (char*)malloc(write_buf_size);
+		if (write_buf == NULL) {
+			fprintf(stderr, "write_epoll_fd() write_buf malloc error\n");
+			free(read_buf);
+			return 1;
+		}
+
+		static const char* rcvd_ok = "Apache 2.2.222 received OK %s\n";
+		sprintf(write_buf, rcvd_ok, read_buf);
+
+		if (write(ev->data.fd, write_buf, (strlen(rcvd_ok) + nread)) > 0) {
+			fprintf(stdout, rcvd_ok, read_buf);
+		}
+
+		free(write_buf);
+
+	// 	read_buf_size -= nread;
+	// 	read_buf += nread;
+	// } while ((read_buf_size - 1) > 0);
+
+	free(read_buf);
+	return 0;
+}
+#endif
 
 
 static size_t do_network(config_t* config, size_t epoll_off) {
@@ -182,7 +248,7 @@ static size_t do_network(config_t* config, size_t epoll_off) {
 			}
 			fprintf(stdout, "epoll_create() %zu\n", epfd);
 
-			struct epoll_event event = { .events = EPOLLIN, .data.fd = sockfd };
+			struct epoll_event event = { .events = EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLET, .data.fd = sockfd };
 			ssize_t ret = 0;
 			if ((ret = epoll_ctl(epfd, EPOLL_CTL_ADD, event.data.fd, &event)) == -1) {
 				fprintf(stderr, "epoll_ctl() -1 %s\n", strerror(errno));
@@ -190,94 +256,60 @@ static size_t do_network(config_t* config, size_t epoll_off) {
 			}
 			fprintf(stdout, "epoll_ctl() %zu\n", ret);
 
-			#define MAX_EPOLL_EVTS 1024
-			struct epoll_event ev, events[MAX_EPOLL_EVTS];
+			size_t epoll_evts = 1;
+			struct epoll_event ev, events[epoll_evts];
 			memset(&ev, 0, sizeof(struct epoll_event));
 			memset(&events, 0, sizeof(events));
 
 			ssize_t numfds = 0;
 			for (;;) {
-				if ((numfds = epoll_wait(epfd, events, MAX_EPOLL_EVTS, -1)) == -1) {
+				if ((numfds = epoll_wait(epfd, events, epoll_evts, -1)) == -1 && (errno != EINTR)) {
 					fprintf(stderr, "epoll_wait() -1 %s\n", strerror(errno));
 					return 1;
 				}
 
-				for (size_t i = 0; i < MAX_EPOLL_EVTS; ++i) {
+				for (ssize_t i = 0; i < numfds; ++i) {
+
+					if (events[i].events & (EPOLLERR | EPOLLHUP)) {
+						fprintf(stderr, "epoll fd %d got (EPOLLERR | EPOLLHUP)\n", events[i].data.fd);
+						close(events[i].data.fd);
+						continue;
+					}
+
 					if (events[i].data.fd == (int)sockfd) {
 						fprintf(stdout, "events got listen sockfd\n");
 						ssize_t accept_sockfd = 0;
 						if ((accept_sockfd = accept(sockfd, (struct sockaddr *) &my_addr, &sockaddr_size)) == -1) {
 							fprintf(stderr, "accept() -1 %s\n", strerror(errno));
+							continue;
+						}
+						if (fcntl(accept_sockfd, F_SETFL, fcntl(accept_sockfd, F_GETFD, 0)|O_NONBLOCK) == -1) {
+							fprintf(stderr, "fcntl(accept) -1 %s\n", strerror(errno));
 							return 1;
 						}
-						if (set_sock_opts(accept_sockfd)) {
-							fprintf(stderr, "set_sock_opts(accept)\n");
-							return 1;
-						}
-						ev.events = EPOLLIN | EPOLLET;
+						ev.events = EPOLLIN | EPOLLERR | EPOLLHUP | EPOLLET;
 						ev.data.fd = accept_sockfd;
 						ssize_t epoll_ret = 0;
 						if ((epoll_ret = epoll_ctl(epfd, EPOLL_CTL_ADD, ev.data.fd, &ev)) == -1) {
 							fprintf(stderr, "accept epoll_ctl() -1 %s\n", strerror(errno));
 							return 1;
 						}
-
-						size_t read_buf_size = 1024;
-						char* read_buf = (char*)malloc(read_buf_size);
-						if (read_buf == NULL) {
-							fprintf(stderr, "read_buf malloc error\n");
-							return 1;
-						}
-
-						do {
-							ssize_t nread = 0;
-							nread = read(accept_sockfd, read_buf, (read_buf_size - 1));
-
-							if (nread < 0 && (errno == EINTR || errno == EWOULDBLOCK))
-								continue;
-
-							if (nread < 0) {
-								fprintf(stderr, "read() %s\n", strerror(errno));
-								return 1;
-							}
-
-							if (nread == 0) {
-								fprintf(stdout, "read() closed socket\n");
-								return 0;
-							}
-
-							if (nread > 0) {
-								fprintf(stdout, "read_buf() %s\n", read_buf);
-
-								size_t write_buf_size = 1024;
-								char* write_buf = (char*)malloc(write_buf_size);
-								if (write_buf == NULL) {
-									fprintf(stderr, "write_buf malloc error\n");
-									return 1;
-								}
-
-								static const char* rcvd_ok = "Apache 2.2.222 received OK %s\n";
-								sprintf(write_buf, rcvd_ok, read_buf);
-
-								if (write(accept_sockfd, write_buf, (strlen(rcvd_ok) + nread)) > 0) {
-									fprintf(stdout, rcvd_ok, read_buf);
-								}
-
-								free(write_buf);
-							}
-
-								read_buf_size -= nread;
-								read_buf += nread;
-						} while ((read_buf_size - 1) > 0);
-
-						free(read_buf);
+						epoll_evts++;
 
 					} else {
-						fprintf(stderr, "epoll sockfd empty %d\n", events[i].data.fd);
+
+						if (write_epoll_fd(&events[i])) {
+
+							fprintf(stderr, "closing %d\n", events[i].data.fd);
+							close(events[i].data.fd);
+							epoll_evts--;
+
+						}
+						continue;
+
 					}
 				}
 			}
-			#undef MAX_EPOLL_EVTS
 			close(epfd);
 		}
 	#endif

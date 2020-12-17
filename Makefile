@@ -1,11 +1,10 @@
-LLC ?= llc
 CLANG ?= clang
+CPPCHECK ?= cppcheck
+SCAN-BUILD ?= scan-build
+GCC ?= gcc
 
 THIS_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
-TC_SRC_DIR ?= $(THIS_DIR)tc
-
 USERSPACE_SRC_DIR ?= $(THIS_DIR)userspace
-
 
 CLANG_FLAGS_COMMON += -D__NR_CPUS__=$(NPROC) -O2
 CLANG_INCLUDES_COMMON += -I. -I$(USERSPACE_SRC_DIR)/libbpf/include
@@ -17,39 +16,38 @@ NPROC := $(shell nproc)
 CURRENT_KERNEL := $(shell uname -r | sed "s/[-].*$\//")
 USERSPACE_OBJECT = userspace_cli
 
-all: verify_cmds verify_target_bpf installation_doc userspace_cli
+all: installation_doc sanitize userspace_cli
 
 installation_doc:
-	@echo "the following packages are required (Ubuntu example): libc6-dev-i386 llvm clang libelf-dev\n\n";
+	echo "hi $(CURRENT_KERNEL)\n";
 
-	@echo "for tc object, you will need bpf_api.h and bpf_elf.h in $(TC_SRC_DIR)/iproute_include corresponding to your kernel version $(CURRENT_KERNEL):";
-	@echo "# wget https://mirrors.edge.kernel.org/pub/linux/utils/net/iproute2/iproute2-$(CURRENT_KERNEL).tar.gz -O- | tar xzf - iproute2-$(CURRENT_KERNEL)/include/bpf_api.h iproute2-$(CURRENT_KERNEL)/include/bpf_elf.h";
-	@echo "# mkdir $(TC_SRC_DIR)/iproute_include; cp -a iproute2-$(CURRENT_KERNEL)/include/* $(TC_SRC_DIR)/iproute_include; rm -rf iproute2-*\n\n";
+# Verify that compiler and tools are available
+.PHONY: verify_cmds $(CLANG) $(CPPCHECK) $(SCAN-BUILD) $(GCC)
 
-	@echo "for userspace object, you will need libbpf library corresponding to your kernel version $(CURRENT_KERNEL):";
-	@echo "assuming that you've downloaded kernel sources from kernel.org into /opt:";
-	@echo "# cd /opt/linux-4.$(CURRENT_KERNEL)/tools/lib/bpf; make";
-	@echo "# cp libbpf.so libbpf.a $(USERSPACE_SRC_DIR)\n\n";
-
-# Verify LLVM compiler tools are available and bpf target is supported by llc
-.PHONY: verify_cmds verify_target_bpf $(CLANG) $(LLC)
-
-verify_cmds: $(CLANG) $(LLC)
+verify_cmds: $(CLANG) $(CPPCHECK) $(SCAN-BUILD) $(GCC)
 	@for TOOL in $^ ; do \
 		if ! (which -- "$${TOOL}" > /dev/null 2>&1); then \
-			echo "*** ERROR: Cannot find LLVM tool $${TOOL}" ;\
+			echo "*** ERROR: Cannot find tool $${TOOL}" ;\
 			exit 1; \
 		else true; fi; \
 	done
 
-verify_target_bpf: verify_cmds
-	@if ! (${LLC} -march=bpf -mattr=help > /dev/null 2>&1); then \
-		echo "*** ERROR: LLVM (${LLC}) does not support 'bpf' target" ;\
-		echo "   NOTICE: LLVM version >= 3.7.1 required" ;\
+sanitize: verify_cmds
+	@if ! (printf "[1/6 clang] \n\n" && ${CLANG} --analyze $(USERSPACE_SRC_DIR)/userspace.c) || \
+				! (printf "[2/6 clang] \n\n" && ${CLANG} -fsanitize=memory,undefined,integer -fsanitize-memory-track-origins=2 \
+						-fno-omit-frame-pointer -fsanitize-memory-use-after-dtor \
+						-g -O2 $(USERSPACE_SRC_DIR)/userspace.c) || \
+				! (printf "[3/6 clang] \n\n" && ${CLANG} -fsanitize=address -fno-omit-frame-pointer -g -O2 $(USERSPACE_SRC_DIR)/userspace.c) || \
+				! (printf "[4/6 scan-build] \n\n" && ${SCAN-BUILD} -V gcc -c $(USERSPACE_SRC_DIR)/userspace.c | grep -vE '/usr/bin/scan-build line 1860.') || \
+				! (printf "[5/6 cppcheck] \n\n" && ${CPPCHECK} $(USERSPACE_SRC_DIR) -j $(NPROC) --template=gcc --language=c --std=c99 --std=posix \
+						--platform=unix64 --enable=all --inconclusive --report-progress --verbose --force --check-library \
+						-I/usr/include -I/usr/include/linux -I/usr/lib/gcc/x86_64-linux-gnu/7/include 2>&1 | grep -vE '__|There is no|equals another one|Checking|information:|scope') || \
+				! (printf "[6/6 gcc] \n\n" && ${GCC} -Wall -Wextra -Wpedantic -Wshadow -Wno-unused-but-set-variable $(USERSPACE_SRC_DIR)/userspace.c); then \
+		echo "*** ERROR: sanitize failed" ;\
 		exit 2; \
 	else true; fi
 
-userspace_cli: $(CLANG) $(LLC)
+userspace_cli: $(CLANG)
 	$(CLANG) $(CLANG_FLAGS_USERSPACE) $(CLANG_INCLUDES_USERSPACE) $(USERSPACE_SRC_DIR)/userspace.c -o $(USERSPACE_OBJECT)
 
 clean:
