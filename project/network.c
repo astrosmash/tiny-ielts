@@ -40,55 +40,57 @@ size_t read_from_socket(size_t sockfd, char* read_buf, size_t read_buf_size) {
 }
 
 
-size_t write_select_fd(size_t sockfd) {
-	fd_set rfds = {0};
-	struct timeval tv = { .tv_sec = 5, .tv_usec = 0 };
+size_t write_select_fd(size_t sockfd, struct sockaddr* my_addr, socklen_t sockaddr_size) {
+	size_t ret = 0;
+	ssize_t accept_sockfd = 0;
 
-	FD_ZERO(&rfds);
-	FD_SET(sockfd, &rfds); // TODO: rfds empty - select(1, [], NULL, NULL, {tv_sec=5, tv_usec=0})
+	for (;;) {
+		if ((accept_sockfd = accept(sockfd, my_addr, &sockaddr_size)) == -1) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				continue;
+			}
+			fprintf(stderr, "accept() -1 %s\n", strerror(errno));
+			ret = 1;
+			break;
+		}
+		if (fcntl(accept_sockfd, F_SETFL, fcntl(accept_sockfd, F_GETFD, 0)|O_NONBLOCK) == -1) {
+			fprintf(stderr, "fcntl(accept) -1 %s\n", strerror(errno));
+			ret = 1;
+			break;
+		}
 
-	ssize_t select_ret = 0;
-	if ((select_ret = select(1, &rfds, NULL, NULL, &tv)) == -1) {
-		fprintf(stderr, "write_select_fd(%zu) select -1 %s\n", sockfd, strerror(errno));
-		return 1;
-	}
+		fprintf(stdout, "write_select_fd(%zu) accept %zd\n", sockfd, accept_sockfd);
 
-	if (select_ret == 0) {
-		fprintf(stdout, "write_select_fd(%zu) no data within 5s\n", sockfd);
-		return 0;
-	}
+		size_t read_buf_size = 1024;
+		char* read_buf = (char*)malloc(read_buf_size + 1);
+		if (read_buf == NULL) {
+			fprintf(stderr, "write_epoll_fd() read_buf malloc error\n");
+			return 1;
+		}
+		size_t nread = 0;
+		nread = read_from_socket(accept_sockfd, read_buf, read_buf_size);
 
-	fprintf(stdout, "write_select_fd(%zu) select %zd\n", sockfd, select_ret);
+		size_t write_buf_size = 1024;
+		char* write_buf = (char*)malloc(write_buf_size + 1);
+		if (write_buf == NULL) {
+			fprintf(stderr, "write_select_fd() write_buf malloc error\n");
+			free(read_buf);
+			return 1;
+		}
 
-	size_t read_buf_size = 1024;
-	char* read_buf = (char*)malloc(read_buf_size + 1);
-	if (read_buf == NULL) {
-		fprintf(stderr, "write_epoll_fd() read_buf malloc error\n");
-		return 1;
-	}
-	size_t nread = 0;
-	nread = read_from_socket(sockfd, read_buf, read_buf_size);
+		const char* rcvd_ok = "Apache 2.2.222 received OK %s\n";
+		sprintf(write_buf, rcvd_ok, read_buf);
 
-	size_t write_buf_size = 1024;
-	char* write_buf = (char*)malloc(write_buf_size + 1);
-	if (write_buf == NULL) {
-		fprintf(stderr, "write_epoll_fd() write_buf malloc error\n");
+		if (write(accept_sockfd, write_buf, (strlen(rcvd_ok) + nread)) > 0) {
+			fprintf(stdout, rcvd_ok, read_buf);
+			fflush(stdout);
+		}
+
+		free(write_buf);
 		free(read_buf);
-		return 1;
 	}
 
-	const char* rcvd_ok = "Apache 2.2.222 received OK %s\n";
-	sprintf(write_buf, rcvd_ok, read_buf);
-
-	if (write(sockfd, write_buf, (strlen(rcvd_ok) + nread)) > 0) {
-		fprintf(stdout, rcvd_ok, read_buf);
-		fflush(stdout);
-	}
-
-	free(write_buf);
-	free(read_buf);
-
-	return 0;
+	return ret;
 }
 
 
@@ -200,7 +202,7 @@ size_t do_network(config_t* config, size_t epoll_off) {
 			fprintf(stdout, "epoll_off set - don't have epoll on current OS\n");
 		}
 
-		if (write_select_fd(sockfd)) {
+		if (write_select_fd(sockfd, (struct sockaddr*)&my_addr, sockaddr_size)) {
 			ret = 1;
 			fprintf(stderr, "write_select_fd(%zu) 1\n", sockfd);
 		}
@@ -208,7 +210,7 @@ size_t do_network(config_t* config, size_t epoll_off) {
 		if (epoll_off) {
 			fprintf(stdout, "epoll_off set\n");
 
-			if (write_select_fd(sockfd)) {
+			if (write_select_fd(sockfd, (struct sockaddr*)&my_addr, sockaddr_size)) {
 				ret = 1;
 				fprintf(stderr, "write_select_fd(%zu) 1\n", sockfd);
 			}
