@@ -1,4 +1,5 @@
 CLANG ?= clang
+CLANG-FORMAT ?= clang-format
 CPPCHECK ?= cppcheck
 SCAN-BUILD ?= scan-build
 GCC ?= gcc
@@ -13,18 +14,20 @@ CLANG_FLAGS_PROJECT += -L$(PROJECT_SRC_DIR) $(CLANG_FLAGS_COMMON) -Wall -Wextra 
 CLANG_INCLUDES_PROJECT += $(CLANG_INCLUDES_COMMON)
 
 NPROC := $(shell nproc)
+PROJECT_FILES := $(shell ls $(PROJECT_SRC_DIR))
 CURRENT_KERNEL := $(shell uname -r | sed "s/[-].*$\//")
-PROJECT_OBJECT = output_bin
+PROJECT_OBJECT := output_bin
 
-all: installation_doc sanitize build_bin
+
+all: installation_doc sanitize format build_bin
 
 installation_doc:
 	echo "hi $(CURRENT_KERNEL)\n";
 
 # Verify that compiler and tools are available
-.PHONY: verify_cmds $(CLANG) $(CPPCHECK) $(SCAN-BUILD) $(GCC)
+.PHONY: verify_cmds $(CLANG) $(CPPCHECK) $(SCAN-BUILD) $(CLANG-FORMAT) $(GCC)
 
-verify_cmds: $(CLANG) $(CPPCHECK) $(SCAN-BUILD) $(GCC)
+verify_cmds: $(CLANG) $(CPPCHECK) $(SCAN-BUILD) $(CLANG-FORMAT) $(GCC)
 	@for TOOL in $^ ; do \
 		if ! (which -- "$${TOOL}" > /dev/null 2>&1); then \
 			echo "*** ERROR: Cannot find tool $${TOOL}" ;\
@@ -47,8 +50,17 @@ sanitize: verify_cmds
 		exit 2; \
 	else true; fi
 
+format: verify_cmds
+	@for FILE in $(PROJECT_FILES) ; do \
+		if ! ($(CLANG-FORMAT) $(PROJECT_SRC_DIR)/"$${FILE}" > /tmp/"$${FILE}" && diff $(PROJECT_SRC_DIR)/"$${FILE}" /tmp/"$${FILE}"); then \
+			echo "*** ERROR: consider $(CLANG-FORMAT) -verbose project/"$${FILE}" > /tmp/"$${FILE}" && mv /tmp/"$${FILE}" project/"$${FILE}"" ;\
+			exit 3; \
+		else true; fi; \
+	done
+
 build_bin: $(CLANG)
 	$(CLANG) $(CLANG_FLAGS_PROJECT) $(CLANG_INCLUDES_PROJECT) $(PROJECT_SRC_DIR)/main.c -o $(PROJECT_OBJECT)
 
 clean:
 	rm -f $(PROJECT_OBJECT) a.out main.o main.plist
+
