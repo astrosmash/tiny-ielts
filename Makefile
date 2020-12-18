@@ -52,7 +52,7 @@ sanitize: verify_cmds
 
 format: verify_cmds
 	@for FILE in $(PROJECT_FILES) ; do \
-		if ($(CLANG-FORMAT) $(PROJECT_SRC_DIR)/"$${FILE}" | grep -q [[:alnum:]]); then \
+		if ! ($(CLANG-FORMAT) $(PROJECT_SRC_DIR)/"$${FILE}" > /tmp/"$${FILE}" && diff $(PROJECT_SRC_DIR)/"$${FILE}" /tmp/"$${FILE}"); then \
 			echo "*** ERROR: consider $(CLANG-FORMAT) -verbose project/"$${FILE}" > /tmp/"$${FILE}" && mv /tmp/"$${FILE}" project/"$${FILE}"" ;\
 			exit 3; \
 		else true; fi; \
@@ -63,3 +63,4 @@ build_bin: $(CLANG)
 
 clean:
 	rm -f $(PROJECT_OBJECT) a.out main.o main.plist
+
