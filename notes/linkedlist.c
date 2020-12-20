@@ -18,6 +18,9 @@ typedef struct linked_list {
 
 int main(void)
 {
+    void (*myfuncptr)(); // declare myfuncptr as a pointer to func returning void and taking no args
+    size_t (**myfuncptr2)(char*, size_t); // declare myfuncptr2 as a pointer to pointer to func [pointer to a first elem of an array of pointers to func] returning size_t and taking char*, size_t as args
+
     // stack program-wide (DATA)
     static const uint16_t my_ints[] = { 2, 3, 5, 7, 3, 24198, 138, 65534 /* ;) */, 231, 122, 4 };
 
