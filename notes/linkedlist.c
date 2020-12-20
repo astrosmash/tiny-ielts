@@ -49,7 +49,7 @@ int main(void)
       my_list->prev = (linked_list_t*)malloc(sizeof(linked_list_t));
       my_list->next = (linked_list_t*)malloc(sizeof(linked_list_t));
 
-      memcpy( (((my_list->node) + d)->inner), my_array->inner, 20 * sizeof(char)); // or strncpy to copy till \0
+      memcpy( (((my_list->node) + d)->inner), my_array->inner, 20 * sizeof(char)); // or strcpy to copy till \0
 
       // (*((my_list->node) + d)->inner) = (*(my_array->inner) + d); // &my_array[0], *my_array ??NO MEMORY ALLOCATED at (*(my_list->node)) so cannot dereference and assign a NULL
       ++d;
@@ -69,7 +69,7 @@ int main(void)
 
       if (!pointer_to_cur_array || !pointer_to_prev_array) {
         fprintf(stderr, "aliased pointers NULL");
-        exit(EXIT_FAILURE);
+        exit(EXIT_FAILURE); // malloc's not freed
       }
 
       fprintf(stdout, "%u", d);
@@ -84,8 +84,8 @@ int main(void)
       fprintf(stdout, "\n");
 
       free(my_list->node);
-      free(my_list->prev);
       free(my_list->next);
+      // free(my_list->prev);
     }
 
     free(my_list);
