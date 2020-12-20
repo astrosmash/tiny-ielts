@@ -35,7 +35,8 @@ int main(void)
 
     // dereference the address of ints[0] and represent as array of ints (wchar_t
     // *) - (for some reason this prints blank string)
-    fprintf(stdout, "Array of ints %ls\n", int_pointer);
+    // upd - this was just an address, no deref operator (*) was applied
+    fprintf(stdout, "Array of ints %d\n", *int_pointer);
 
     // get address of ints[0], increment by 1 and dereference
     fprintf(stdout, "%i\n", *(int_pointer + 1));
