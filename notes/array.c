@@ -52,7 +52,7 @@ int main(void)
     // take a value of int located at +12 of base address ints
     fprintf(stdout, "%d\n", ints[13]);
     // take address of the variable *(int_pointer + 12) and print as a pointer
-    // representation
+    // representatios what is equal to (int_pointer + 12)
     fprintf(stdout, "%p\n", &ints[13]);
 
     // cannot dereference (*) what is already a sugar of *(int_pointer + 12)
