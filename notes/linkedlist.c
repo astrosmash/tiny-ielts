@@ -190,7 +190,8 @@ int main(void)
     fprintf(stdout, "my_str_3: %s \n", my_str_3);
     fprintf(stdout, "my_str_4: %s \n", &my_str_4[0]);
 
-    char *intstr[] = { "222222", "33333333333", "4444444444", "555555555" };
+    char *intstr[] = { "222222", "33333333333", "4444444444", "555555555", "23232323", "434233432", "07843243", "777", "999929m" };
+    fprintf(stdout, "intstr_arr %p \n", intstr);
     fprintf(stdout, "intstr %s \n", *intstr);
     fprintf(stdout, "intstr[2] %s \n", *(intstr + 2));
 
@@ -200,5 +201,9 @@ int main(void)
       fprintf(stdout, "digit%u: %llu \n", i, digit);
       fprintf(stdout, "digit%u: %llu \n", i, atoi("33333333333"));
     }
+    char *tailptr = NULL;
+    uint32_t digit_strtol = strtol(*(intstr + 3), &tailptr, 10);
+    fprintf(stdout, "digit_strtol: %u \n", digit_strtol);
+
     exit(EXIT_SUCCESS);
 }

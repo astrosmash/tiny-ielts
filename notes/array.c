@@ -4,7 +4,7 @@
 int main(void)
 {
     char string[] = "123456780";
-    char* str_pointer = string;
+    char *str_pointer = string;
 
     string[6]++;
     // str_pointer++; // str_pointer var now holds an incremented base address by
