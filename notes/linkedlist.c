@@ -73,7 +73,7 @@ int main(void)
           {74, 74, 74, 74, 74, 74, 72, 31, 30, 31, 30, 31}
       };
 
-      /*[3]*/char (*suits)[4] = (char [][4]){ {"abc", "cab", "bca2"}, {"abc2", "cab2", "bc2"} };
+      /*[3]*/char (*suits)[4][3] = (char [][4][3]){ {"abc", "cab", "bca2"}, {"abc2", "cab2", "bc2"} };
       const char *suits_sugar[2][3] = { {"abc", "cab", "bca"}, {"abc2", "cab2", "bca2"} };
 
       fprintf(stdout, "-----------------------------------\n");
