@@ -53,6 +53,7 @@ int main(void)
     fprintf(stdout, "%d\n", ints[13]);
     // take address of the variable *(int_pointer + 12) and print as a pointer
     // representatios what is equal to (int_pointer + 12)
+    // *(int *)vptr == cast vptr to a pointer to the int and dereference
     fprintf(stdout, "%p\n", &ints[13]);
 
     // cannot dereference (*) what is already a sugar of *(int_pointer + 12)
