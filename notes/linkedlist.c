@@ -15,6 +15,20 @@ typedef struct linked_list {
     struct linked_list *prev, *next;
 } linked_list_t;
 
+void set_int(int *ptr_to_int)
+{
+  // deref ptr_to_int, set val to 12
+  // cannot be checked that it's an actual ptr to int!
+  // (https://wiki.sei.cmu.edu/confluence/display/c/EXP34-C.+Do+not+dereference+null+pointers?focusedCommentId=88020518#comment-88020518)
+  *ptr_to_int = 12;
+}
+
+// we call set_int from within allocate_int, so stack access is ok
+void allocate_int(void)
+{
+  int my_int /* = 0 */, *ptr_to_my_int = &my_int; // pointer to 0
+  set_int( ptr_to_my_int + 1 ); // >>3 bytes + 1 byte
+}
 
 int main(void)
 {
@@ -68,13 +82,13 @@ int main(void)
       // char (*daytab2)[13] = (char [13]){
       //   {0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
       // };
-      char (*daytab)[13] = (char [][13]){
+      char (*daytab)[13] = (char [][13]){ // arr of 13 ptrs to char
           {72, 72, 72, 72, 72, 72, 72, 31, 30, 31, 30, 31},
           {74, 74, 74, 74, 74, 74, 72, 31, 30, 31, 30, 31}
       };
 
-      /*[3]*/char (*suits)[4][3] = (char [][4][3]){ {"abc", "cab", "bca2"}, {"abc2", "cab2", "bc2"} };
-      const char *suits_sugar[2][3] = { {"abc", "cab", "bca"}, {"abc2", "cab2", "bca2"} };
+      /*[3]*/char (*suits)[4][3] = (char [][4][3]){ {"abc", "cab", "bca2"}, {"abc2", "cab2", "bc2"} }; // array from 4 ptrs to 3 chars
+      const char *suits_sugar[2][3] = { {"abc", "cab", "bca"}, {"abc2", "cab2", "bca2"} }; // suits_sugar is a ptr to array of 2 of 3 const chars
 
       fprintf(stdout, "-----------------------------------\n");
       fprintf(stdout, "%c\n",  myptr[4]);
@@ -190,20 +204,26 @@ int main(void)
     fprintf(stdout, "my_str_3: %s \n", my_str_3);
     fprintf(stdout, "my_str_4: %s \n", &my_str_4[0]);
 
-    char *intstr[] = { "222222", "33333333333", "4444444444", "555555555", "23232323", "434233432", "07843243", "777", "999929m" };
+    char *intstr[] = { "234", "567", "890", "123", "4545", "5656", "7878", "8989", "9090", "110110", "111220"}; // 11 pointers to char*
     fprintf(stdout, "intstr_arr %p \n", intstr);
     fprintf(stdout, "intstr %s \n", *intstr);
     fprintf(stdout, "intstr[2] %s \n", *(intstr + 2));
 
-    for (uint8_t i = 0; i < (sizeof(intstr) / sizeof(*intstr)); ++i) {
+    fprintf(stdout, "sizeof(intstr) %lu\n", sizeof(intstr));
+    fprintf(stdout, "sizeof(*intstr) %lu\n", sizeof(*intstr));
+
+    for (uint8_t i = 0; i < (sizeof(intstr) / sizeof(*intstr)); ++i) { // 11*8 = 88bytes total / 8 per pointer = 11 pointers
       uint64_t digit = 0;
       digit = atoi(*(intstr + i));
       fprintf(stdout, "digit%u: %llu \n", i, digit);
-      fprintf(stdout, "digit%u: %llu \n", i, atoi("33333333333"));
+      fprintf(stdout, "digit%u: %u\n", i, atoi("2323232"));
     }
     char *tailptr = NULL;
     uint32_t digit_strtol = strtol(*(intstr + 3), &tailptr, 10);
     fprintf(stdout, "digit_strtol: %u \n", digit_strtol);
+
+
+
 
     exit(EXIT_SUCCESS);
 }
