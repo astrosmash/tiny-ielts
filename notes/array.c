@@ -4,7 +4,7 @@
 int main(void)
 {
     char string[] = "123456780";
-    char* str_pointer = string;
+    char *str_pointer = string;
 
     string[6]++;
     // str_pointer++; // str_pointer var now holds an incremented base address by
@@ -41,7 +41,7 @@ int main(void)
     // get address of ints[0], increment by 1 and dereference
     fprintf(stdout, "%i\n", *(int_pointer + 1));
     // first, dereference an address @ int_pointer (ints[0]) and increment by 1
-    // (ints[1]); then, dereference resulting address.
+    // (ints[1]); then, dereference resulting address and increment its value (get a copy, +1 to it and write new var to old mem.). If it was arr, no copy would be made and direct val would be incremented (2 insns instead of 3)
     (*(int_pointer + 1))++;
 
     // dereference address of ints[0]
@@ -58,5 +58,6 @@ int main(void)
 
     // cannot dereference (*) what is already a sugar of *(int_pointer + 12)
     // fprintf(stdout, "%p\n", *ints[13]);
+
     return 0;
 }

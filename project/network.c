@@ -140,7 +140,7 @@ size_t write_epoll_fd(struct epoll_event *ev) {
 }
 #endif
 
-size_t do_network(config_t *config, size_t epoll_off) {
+size_t do_network(const config_t *config, size_t epoll_off) {
   size_t ret = 0;
 
   if (strlen(config->css) > 0) {
