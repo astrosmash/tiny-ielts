@@ -88,7 +88,7 @@ int main(void)
       };
 
       /*[3]*/char (*suits)[4][3] = (char [][4][3]){ {"abc", "cab", "bca2"}, {"abc2", "cab2", "bc2"} }; // array from 4 ptrs to 3 chars
-      const char *suits_sugar[2][3] = { {"abc", "cab", "bca"}, {"abc2", "cab2", "bca2"} }; // suits_sugar is a ptr to array of 2 of 3 const chars
+      const char *suits_sugar[2][3] = { {"abc", "cab", "bca"}, {"abc2", "cab2", "bca2"} }; // suits_sugar an array of 2 ptrs to 3 const chars (3 char*)
 
       fprintf(stdout, "-----------------------------------\n");
       fprintf(stdout, "%c\n",  myptr[4]);
