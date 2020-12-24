@@ -10,9 +10,9 @@ struct triangle {
 };
 
 typedef struct triangle triangle;
-// Task code ---------------------------------------------------------------------
+// Task code -------------------------------------------------------------------
 
-
+// Code begin ------------------------------------------------------------------
 typedef enum { CLASSIC_BUBBLE = 1,
     MY = 2 } method;
 typedef enum { SQRT = 1,
@@ -46,7 +46,9 @@ void sort_by_area(triangle* tr, int n, method m, area_type at)
 
         const unsigned int hot = (ctr->a + ctr->b + ctr->c) / 2;
         const double sqrtable = hot * (hot - ctr->a) * (hot - ctr->b) * (hot - ctr->c);
-        const unsigned int area = (at == SQRT) ? sqrt(sqrtable) : ((ctr->a + ctr->b + ctr->c) * (ctr->b + ctr->c - ctr->a) * (ctr->a + ctr->c - ctr->b) * (ctr->a + ctr->b - ctr->c)); 
+        const unsigned int sum_of_sides = ctr->a + ctr->b + ctr->c;
+        const unsigned int alt_way = ((ctr->a + ctr->b + ctr->c) * (ctr->b + ctr->c - ctr->a) * (ctr->a + ctr->c - ctr->b) * (ctr->a + ctr->b - ctr->c));
+        const unsigned int area = (at == SQRT) ? sqrt(sqrtable) : sum_of_sides;
 
         result[i] = *ctr;
         weight[i] = area;
