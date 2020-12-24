@@ -57,6 +57,8 @@ int main(void) {
   strcpy(mallocd_struct->name, "strcpyd_namestrcpyd_namestrcpyd_namestrcpyd_namestrcpyd_namestrcpyd_namestrcpyd_name");
   fprintf(stdout, "mallocd_struct:: %p: %s(%p) %zu(%p)\n", mallocd_struct, mallocd_struct->name, &mallocd_struct->name, mallocd_struct->age, &mallocd_struct->age);
 
+  static size_t (*qf)[888];
+
   struct {
     size_t sst1;
     size_t sst2;
