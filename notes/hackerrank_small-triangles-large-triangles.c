@@ -46,7 +46,7 @@ void sort_by_area(triangle* tr, int n, method m, area_type at)
 
         const unsigned int hot = (ctr->a + ctr->b + ctr->c) / 2;
         const double sqrtable = hot * (hot - ctr->a) * (hot - ctr->b) * (hot - ctr->c);
-        const unsigned int area = (at == SQRT) ? sqrt(sqrtable) : ctr->a + ctr->b + ctr->c;
+        const unsigned int area = (at == SQRT) ? sqrt(sqrtable) : ((ctr->a + ctr->b + ctr->c) * (ctr->b + ctr->c - ctr->a) * (ctr->a + ctr->c - ctr->b) * (ctr->a + ctr->b - ctr->c)); 
 
         result[i] = *ctr;
         weight[i] = area;
