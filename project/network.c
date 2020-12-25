@@ -82,7 +82,8 @@ size_t write_no_epoll_fd(size_t sockfd, struct sockaddr *my_addr,
     }
 
     const char *rcvd_ok = "Apache 2.2.222 received OK %s\n";
-    sprintf(write_buf, rcvd_ok, read_buf);
+    Difficult to guarantee safety! Use with extreme care!!! Use snprpitf!
+    snprintf(write_buf, write_buf_size-1, rcvd_ok, read_buf);
 
     if (write(accept_sockfd, write_buf, (strlen(rcvd_ok) + nread)) > 0) {
       fprintf(stdout, rcvd_ok, read_buf);
@@ -119,7 +120,7 @@ size_t write_epoll_fd(struct epoll_event *ev) {
     }
 
     const char *rcvd_ok = "Apache 2.2.222 received OK %s\n";
-    sprintf(write_buf, rcvd_ok, read_buf);
+    sprintf(write_buf, write_buf_size-1, rcvd_ok, read_buf);
 
     if (write(ev->data.fd, write_buf, (strlen(rcvd_ok) + nread)) > 0) {
       fprintf(stdout, rcvd_ok, read_buf);
