@@ -3,6 +3,7 @@ CLANG-FORMAT ?= clang-format
 CPPCHECK ?= cppcheck
 SCAN-BUILD ?= scan-build
 GCC ?= gcc
+VALGRIND ?= valgrind
 
 THIS_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 PROJECT_SRC_DIR ?= $(THIS_DIR)project
@@ -25,9 +26,9 @@ installation_doc:
 	echo "hi $(CURRENT_KERNEL)\n";
 
 # Verify that compiler and tools are available
-.PHONY: verify_cmds $(CLANG) $(CPPCHECK) $(SCAN-BUILD) $(CLANG-FORMAT) $(GCC)
+.PHONY: verify_cmds $(CLANG) $(CPPCHECK) $(SCAN-BUILD) $(CLANG-FORMAT) $(GCC) $(VALGRIND)
 
-verify_cmds: $(CLANG) $(CPPCHECK) $(SCAN-BUILD) $(CLANG-FORMAT) $(GCC)
+verify_cmds: $(CLANG) $(CPPCHECK) $(SCAN-BUILD) $(CLANG-FORMAT) $(GCC) $(VALGRIND)
 	@for TOOL in $^ ; do \
 		if ! (which -- "$${TOOL}" > /dev/null 2>&1); then \
 			echo "*** ERROR: Cannot find tool $${TOOL}" ;\
@@ -57,6 +58,12 @@ format: verify_cmds
 			exit 3; \
 		else true; fi; \
 	done
+
+mem_sanitize: verify_cmds
+	@if ! ($(VALGRIND) -v --track-origins=yes --leak-check=full --show-leak-kinds=all  $(THIS_DIR)$(PROJECT_OBJECT) -c $(THIS_DIR)config.conf -tw 222) ; then \
+                echo "*** ERROR: valgrind failed" ;\
+                exit 2; \
+        else true; fi
 
 build_bin: $(CLANG)
 	$(CLANG) $(CLANG_FLAGS_PROJECT) $(CLANG_INCLUDES_PROJECT) $(PROJECT_SRC_DIR)/main.c -o $(PROJECT_OBJECT)

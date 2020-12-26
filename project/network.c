@@ -120,7 +120,7 @@ size_t write_epoll_fd(struct epoll_event *ev) {
     }
 
     const char *rcvd_ok = "Apache 2.2.222 received OK %s\n";
-    sprintf(write_buf, write_buf_size-1, rcvd_ok, read_buf);
+    snprintf(write_buf, write_buf_size-1, rcvd_ok, read_buf);
 
     if (write(ev->data.fd, write_buf, (strlen(rcvd_ok) + nread)) > 0) {
       fprintf(stdout, rcvd_ok, read_buf);
