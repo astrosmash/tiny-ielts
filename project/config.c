@@ -38,7 +38,7 @@ config_t *allocate_config(config_t *config) {
   return config;
 }
 
-void free_config(const config_t *config) {
+void free_config(config_t *config) {
   free(config->address);
   free(config->port);
   free(config->css);

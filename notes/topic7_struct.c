@@ -29,10 +29,10 @@ int main(void) {
     char name[MAX_MEMBER_LEN + 5]; // Note +1 for \0
     size_t age;
     ssize_t round_mark;
-  } my_struct_type_new_alias;
+  } my_struct_type_new_alias; //*
 
   // Stack allocation
-  my_struct_type_new_alias db3;
+  my_struct_type_new_alias db3; // Garbage in elements
   char *my_new_name = "Mickey MS DJB>AfterChangingPassport";
 
   // !!! UNDEFINED !!! .name is M, age is 0
@@ -51,10 +51,11 @@ int main(void) {
 
   struct my_struct_type *mallocd_struct;
   mallocd_struct = (struct my_struct_type *)malloc(sizeof(struct my_struct_type) + 1);
+  memset(mallocd_struct, 0, sizeof(*mallocd_struct));
   if (mallocd_struct == NULL) perror("mallocd_struct NULL\n");
   (*mallocd_struct).age = 123; // deref address of mallocd_struct, set its elem age to 123
   mallocd_struct->age = 2929; // ->: deref address of mallocd_struct, set its field age to 2929
-  strcpy(mallocd_struct->name, "strcpyd_namestrcpyd_namestrcpyd_namestrcpyd_namestrcpyd_namestrcpyd_namestrcpyd_name");
+  strcpy((mallocd_struct + 22)->name, "strcpyd_namestrcpyd_namestrcpyd_namestrcpyd_namestrcpyd_namestrcpyd_namestrcpyd_name");
   fprintf(stdout, "mallocd_struct:: %p: %s(%p) %zu(%p)\n", mallocd_struct, mallocd_struct->name, &mallocd_struct->name, mallocd_struct->age, &mallocd_struct->age);
 
   static size_t (*qf)[888];

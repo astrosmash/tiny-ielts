@@ -39,7 +39,8 @@ int main(void)
     static const uint16_t my_ints[] = { 2, 3, 5, 7, 3, 24198, 138, 65534 /* ;) */, 231, 122, 4 };
 
     // stack
-    const char* my_strings[] = { "ADSKJL2DLUI", "AFKJFJHJKAFKF7", "AFEUIFUEYFAEJFV", "23J2Q3JLKFAFE", "AFJKLFALJF2FQJKFASD", "AVKKGKEFJKFJLKA", "", "AFJDSJFDSJKSDFA", "AFDSKLDFSKLJSDF", "KAFKFD" };
+    const char *my_strings[] = { "ADSKJL2DLUI", "AFKJFJHJKAFKF7", "AFEUIFUEYFAEJFV", "23J2Q3JLKFAFE", "AFJKLFALJF2FQJKFASD", "AVKKGKEFJKFJLKA", "", "AFJDSJFDSJKSDFA", "AFDSKLDFSKLJSDF", "KAFKFD" };
+    fprintf(stdout, "--\n\n%s\n\n", my_strings[3]);;
 
     // stack
     my_array_t my_array[] = {
