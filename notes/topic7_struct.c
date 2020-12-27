@@ -32,7 +32,7 @@ int main(void) {
   } my_struct_type_new_alias; //*
 
   // Stack allocation
-  my_struct_type_new_alias db3; // Garbage in elements
+  my_struct_type_new_alias db3; // Garbage in elements!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   char *my_new_name = "Mickey MS DJB>AfterChangingPassport";
 
   // !!! UNDEFINED !!! .name is M, age is 0

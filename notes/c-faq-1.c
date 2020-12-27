@@ -22,7 +22,8 @@
 //static void statemachine(void) {
 //    funcptr77 state = start;
 //    while (state != stop) {
-//        state = (funcptr77)(*state)();
+//        state = (funcptr77)(*state)();//static void statemachine(void) {
+
 //    }
 //}
 //
@@ -50,6 +51,15 @@
 //    return ret;
 //};
 
+void infinite_recursion(void) {
+    fprintf(stdout, "infinite recursion\n ");
+    infinite_recursion();
+}
+
+void infinite_recursion2(int st) {
+    fprintf(stdout, "infinite recursion%d\n ", st);
+    infinite_recursion2(++st);
+}
 int main(void) {
     //    start();
     uint16_t *testd = (uint16_t *) malloc(255 * 384 * sizeof (uint16_t));
@@ -66,8 +76,16 @@ int main(void) {
     fprintf(stdout, "QQ %u\t\n", *testd2[0]);
     fprintf(stdout, "BB %u\t\n", *(*(testd2 + 1) + 1)); // testd2[1][1]
     fprintf(stdout, "ZZ %u\t\n", *(*(testd2 + 1) + 2)); // testd2[1][2]
- 
-    
-    uint8_t t8t = 99;
+
+    //    ( * ( void ( * ) () ) 0 ) ();
+
+    uint8_t i = 0;
+
+    for (; --i; --i) {
+        fprintf(stdout, "for %u\n", i);
+        infinite_recursion();
+//        infinite_recursion2(99);
+    }
+
     return EXIT_SUCCESS;
 }

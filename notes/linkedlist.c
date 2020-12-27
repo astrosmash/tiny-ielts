@@ -83,7 +83,7 @@ int main(void)
       // char (*daytab2)[13] = (char [13]){
       //   {0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
       // };
-      char (*daytab)[13] = (char [][13]){ // arr of 13 ptrs to char
+      char (*daytab)[13] = (char [][13]){ // arr of 13 ptrs to char (this would be ptr to 72 w/o a cast)
           {72, 72, 72, 72, 72, 72, 72, 31, 30, 31, 30, 31},
           {74, 74, 74, 74, 74, 74, 72, 31, 30, 31, 30, 31}
       };
