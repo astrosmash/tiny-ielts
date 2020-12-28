@@ -521,11 +521,35 @@ Referencing an increment more than 1 time in the same expression is undefined be
 modify the variable twice between sequence points, > behavior is undefined.
 
 ------------------------------------------------------------------------------------------------------------------------------------
+When you need to ensure the order of subexpression evaluation, you may need to use explicit temporary variables and
+separate statements (parenthesis do not necessarily force the order).
+
+------------------------------------------------------------------------------------------------------------------------------------
+The comma operator does guarantee left-to-right evaluation, but the commas separating the arguments in a function call
+are not comma operators.  The order of evaluation of the arguments to a function call is unspecified.
+
+------------------------------------------------------------------------------------------------------------------------------------
+C sequence points:
+`i++ * i++` - UB.
+`i = i++` - UB.
+`a[i] = i++` - UB.
+`i++ && i++` - OK.
+`i = i + 1` - OK.
+
+------------------------------------------------------------------------------------------------------------------------------------
+What's the difference between ++i and i++?
+
+++i adds one to the stored value of i and returns the new, incremented value to the surrounding expression. (faster since it's 1 op)
+i++ adds one to i but returns the prior, unincremented value. (slower since it stores copy of old val to return?)
+(see initialization; test; increment)
+
+------------------------------------------------------------------------------------------------------------------------------------
+The relational operators, such as <, are all binary; they compare two operands and return a true or false (1 or 0) result.
+
+------------------------------------------------------------------------------------------------------------------------------------
+<limits.h> INT_MAX
 
 ------------------------------------------------------------------------------------------------------------------------------------
 
-------------------------------------------------------------------------------------------------------------------------------------
-
-------------------------------------------------------------------------------------------------------------------------------------
 
 ------------------------------------------------------------------------------------------------------------------------------------

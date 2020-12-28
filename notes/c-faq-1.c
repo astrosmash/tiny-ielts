@@ -81,9 +81,14 @@ int main(void) {
 
     uint8_t i = 0;
 
-    for (; --i; --i) {
+//    for (; --i; --i) {
+//        fprintf(stdout, "for %u\n", i);
+//        infinite_recursion();
+////        infinite_recursion2(99);
+//    }
+    for (; --;--i) {
         fprintf(stdout, "for %u\n", i);
-        infinite_recursion();
+//        infinite_recursion();
 //        infinite_recursion2(99);
     }
 
