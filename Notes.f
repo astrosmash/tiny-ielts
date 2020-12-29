@@ -374,6 +374,7 @@ int (**(*)(void))() ptr to function that accepts void and returns ptr to ptr to 
 ------------------------------------------------------------------------------------------------------------------------------------
 An extern array of unspecified size is an incomplete type; you cannot apply sizeof to it.
 sizeof operates at compile time, and there is no way for it to learn the size of an array which is defined in another file.
+also sizeof does not show size of malloc'ed block.
 
 ------------------------------------------------------------------------------------------------------------------------------------
 char *a[4] = {"this", "is", "a", "test"};
@@ -550,6 +551,6 @@ The relational operators, such as <, are all binary; they compare two operands a
 <limits.h> INT_MAX
 
 ------------------------------------------------------------------------------------------------------------------------------------
-
+while !feof might be used as like strtok_r
 
 ------------------------------------------------------------------------------------------------------------------------------------

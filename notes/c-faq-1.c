@@ -86,7 +86,7 @@ int main(void) {
 //        infinite_recursion();
 ////        infinite_recursion2(99);
 //    }
-    for (; --;--i) {
+    for (; --i;--i) {
         fprintf(stdout, "for %u\n", i);
 //        infinite_recursion();
 //        infinite_recursion2(99);

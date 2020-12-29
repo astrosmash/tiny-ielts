@@ -63,7 +63,17 @@ int main(void) {
   struct {
     size_t sst1;
     size_t sst2;
-  } anon_str1 = { .sst1 = -1 }, anon_str2;
+    } anon_str1 = {.sst1 = -1}, anon_str2;
+
+    //struct_var.int_member = 0;
+    //struct_var->int_number = 0; // this statement is equivalent to: (*struct_var).int_number = 0;
+
+    // The linked list is terminated on the last node (in our example, this would be the last order) whose next_order variable would be assigned to NULL.
+    struct restaurant_order {
+        char description[100];
+        double price;
+        struct restaurant_order *next_order; // linked list
+    };
 
   exit(EXIT_SUCCESS);
 }
