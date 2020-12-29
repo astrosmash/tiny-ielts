@@ -69,6 +69,7 @@ size_t write_no_epoll_fd(size_t sockfd, struct sockaddr *my_addr,
       ret = 1;
       break;
     }
+    memset(read_buf, 0, read_buf_size + 1);
     size_t nread = 0;
     nread = read_fd(accept_sockfd, read_buf, read_buf_size);
 
@@ -83,6 +84,7 @@ size_t write_no_epoll_fd(size_t sockfd, struct sockaddr *my_addr,
 
     const char *rcvd_ok = "Apache 2.2.222 received OK %s\n";
 //    Difficult to guarantee safety! Use with extreme care!!! Use snprpitf!
+    memset(write_buf, 0, write_buf_size + 1);
     snprintf(write_buf, write_buf_size-1, rcvd_ok, read_buf);
 
     if (write(accept_sockfd, write_buf, (strlen(rcvd_ok) + nread)) > 0) {
@@ -107,6 +109,7 @@ size_t write_epoll_fd(struct epoll_event *ev) {
       fprintf(stderr, "write_epoll_fd() read_buf malloc error\n");
       return 1;
     }
+    memset(read_buf, 0, read_buf_size + 1);
     size_t nread = 0;
     // do {
     nread = read_fd(ev->data.fd, read_buf, read_buf_size);
@@ -120,6 +123,7 @@ size_t write_epoll_fd(struct epoll_event *ev) {
     }
 
     const char *rcvd_ok = "Apache 2.2.222 received OK %s\n";
+    memset(write_buf, 0, write_buf_size + 1);
     snprintf(write_buf, write_buf_size-1, rcvd_ok, read_buf);
 
     if (write(ev->data.fd, write_buf, (strlen(rcvd_ok) + nread)) > 0) {
@@ -237,7 +241,7 @@ size_t do_network(config_t *config, size_t epoll_off) {
     size_t epoll_evts = 1;
     struct epoll_event ev, events[epoll_evts];
     memset(&ev, 0, sizeof(struct epoll_event));
-    memset(&events, 0, sizeof(events));
+    memset(&events, 0, epoll_evts * sizeof(struct epoll_event));
 
     ssize_t numfds = 0;
     for (;;) {

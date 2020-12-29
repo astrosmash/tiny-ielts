@@ -16,6 +16,8 @@ char *read_file(const char *filename) {
     return NULL;
   }
 
+  memset(buf, 0, buf_size);
+
   size_t ret = fread(buf, sizeof(char), buf_size, file);
   fclose(file);
   fprintf(stdout, "fread(%s) %zu bytes\n", filename, ret);
@@ -24,10 +26,10 @@ char *read_file(const char *filename) {
 
 config_t *allocate_config(config_t *config) {
   config = malloc(sizeof(config_t));
-  config->port = (char *)malloc(sizeof(char));
-  config->address = (char *)malloc(sizeof(char));
-  config->css = (char *)malloc(sizeof(char));
-  config->html = (char *)malloc(sizeof(char));
+  config->port = (char *)malloc(4 + 1);
+  config->address = (char *)malloc(14 + 1);
+  config->css = (char *)malloc(63 + 1);
+  config->html = (char *)malloc(63 + 1);
 
   if (config->port == NULL || config->address == NULL || config->css == NULL ||
       config->html == NULL) {
@@ -35,6 +37,10 @@ config_t *allocate_config(config_t *config) {
     free(config);
     return NULL;
   }
+  memset(config->port, 0, 4 + 1);
+  memset(config->address, 0, 14 + 1);
+  memset(config->css, 0, 63 + 1);
+  memset(config->html, 0, 63 + 1);
   return config;
 }
 
