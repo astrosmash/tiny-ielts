@@ -144,6 +144,9 @@ Rules about void*:
 • can't dereference a void* value
 • can assign or cast a void* value to any other pointer type
 
+The declaration void *somePointer; is used to declare a pointer of some nonspecified type. You can assign a value to a void pointer,
+but you must cast the variable to point to some specified type before you can dereference it. Pointer arithmetic is also not valid
+with void * pointers.
 ------------------------------------------------------------------------------------------------------------------------------------
 void *genericPtr;
 int x = 7;
@@ -552,5 +555,106 @@ The relational operators, such as <, are all binary; they compare two operands a
 
 ------------------------------------------------------------------------------------------------------------------------------------
 while !feof might be used as like strtok_r
+
+------------------------------------------------------------------------------------------------------------------------------------
+ *p++ is equivalent to *(p++);
+ use (*p)++ (or perhaps ++*p) to increment the value.
+ 
+------------------------------------------------------------------------------------------------------------------------------------
+cast operator is a conversion operator; yileds an rvalue which cannot be assigned to (or incremented).
+
+------------------------------------------------------------------------------------------------------------------------------------
+args to funcs are ALWAYS passed by value!!! Func is getting local copy of an arg; if you need to change ptr, use ptr to ptr.
+Simulation of passing by reference:
+	void f(void **);
+	double *dp;
+	void *vp = dp;
+	f(&vp);
+	dp = vp;
+
+A void pointer is not the same type as a structure pointer, and on some machines it may have a different size or representation
+(which is why these casts are required for correctness).
+
+------------------------------------------------------------------------------------------------------------------------------------
+Calling func via pointer: r = (*fp)(); == r = fp();
+On some machines, function addresses can be very large, bigger than any data  (void *) pointers.
+
+------------------------------------------------------------------------------------------------------------------------------------
+The expression myArray[i] is equivalent to i[myArray].
+The first is equivalent to *(myArray+i), and the second is equivalent to *(i+myArray).
+These turn out to be the same, since the addition is commutative.
+
+https://godbolt.org/z/v9Mj4Yhttps://godbolt.org/z/v9Mj4Y
+
+------------------------------------------------------------------------------------------------------------------------------------
+sizeof operates at compile-time inside the same function where object is defined
+(e.g. #define NUM_ELEM(x) (sizeof (x) / sizeof (*(x)))); NUM_ELEM(arr) - only if ARR is in the same function where the sizeof is)
+Unfortunately, (in C and C++) the length of the array cannot be obtained from an array passed in at run time, because
+(as mentioned above) the size of an array is not stored anywhere. The compiler always replaces sizeof with a constant.
+
+------------------------------------------------------------------------------------------------------------------------------------
+char* p1 = "onetwothree";
+char* p2 = "twothree";
+char* p3 = "three";
+
+-O2/-O3:
+
+p1 p2
+v  v
+onetwothree\0
+      ^
+      p3
+base address is different, and '\0' is at the end.
+
+------------------------------------------------------------------------------------------------------------------------------------
+always use parenthesis for #define's. (and compiler calculates constant expressions).
+#define X 2 + 3
+printf("%d\n", X * 4);
+
+preprocessor will put '2 + 3 * 4'
+
+------------------------------------------------------------------------------------------------------------------------------------
+char *p = malloc(10); - implicit conversion of malloc ret value to char *
+char *p = (char *)malloc(10); - explicit (and c++ - required) conversion
+
+------------------------------------------------------------------------------------------------------------------------------------
+void f(int *ip) {
+static int dummy = 5;
+ip = &dummy;
+}
+
+int *ip;
+f(ip); - f receives a copy of the pointer as we have pass-by-value. To pass by ref we'd need to accept ptr to ptr:
+
+void f(int **ip)... + f(&ip)
+------------------------------------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------------------
 
 ------------------------------------------------------------------------------------------------------------------------------------
