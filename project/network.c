@@ -39,7 +39,8 @@ size_t read_fd(size_t sockfd, char *read_buf, size_t read_buf_size) {
 }
 
 size_t write_no_epoll_fd(size_t sockfd, struct sockaddr *my_addr,
-        socklen_t sockaddr_size) {
+        socklen_t sockaddr_size, void *data) {
+    assert(data);
     size_t ret = 0;
     ssize_t accept_sockfd = 0;
 
@@ -54,50 +55,58 @@ size_t write_no_epoll_fd(size_t sockfd, struct sockaddr *my_addr,
             ret = 1;
             break;
         }
-        do {
-            if (fcntl(accept_sockfd, F_SETFL,
-                    fcntl(accept_sockfd, F_GETFD, 0) | O_NONBLOCK) == -1) {
-                fprintf(stderr, "fcntl(accept) -1 %s\n", strerror(errno));
-                ret = 1;
-                break;
-            }
 
-            fprintf(stdout, "write_no_epoll_fd(%zu) accept %zd\n", sockfd,
-                    accept_sockfd);
+        if (fcntl(accept_sockfd, F_SETFL,
+                fcntl(accept_sockfd, F_GETFD, 0) | O_NONBLOCK) == -1) {
+            fprintf(stderr, "fcntl(accept) -1 %s\n", strerror(errno));
+            ret = 1;
+            break;
+        }
 
-            size_t read_buf_size = 1024;
-            char *read_buf = (char *) malloc(read_buf_size + 1);
-            if (read_buf == NULL) {
-                fprintf(stderr, "write_epoll_fd() read_buf malloc error\n");
-                ret = 1;
-                break;
-            }
-            memset(read_buf, 0, read_buf_size + 1);
-            size_t nread = 0;
-            nread = read_fd(accept_sockfd, read_buf, read_buf_size);
+        fprintf(stdout, "write_no_epoll_fd(%zu) accept %zd\n", sockfd,
+                accept_sockfd);
 
-            size_t write_buf_size = 1024;
-            char *write_buf = (char *) malloc(write_buf_size + 1);
-            if (write_buf == NULL) {
-                fprintf(stderr, "write_no_epoll_fd() write_buf malloc error\n");
-                free(read_buf);
-                ret = 1;
-                break;
-            }
+        size_t read_buf_size = 1024;
+        char *read_buf = (char *) malloc(read_buf_size + 1);
+        if (read_buf == NULL) {
+            fprintf(stderr, "write_epoll_fd() read_buf malloc error\n");
+            ret = 1;
+            break;
+        }
+        memset(read_buf, 0, read_buf_size + 1);
+        size_t nread = 0;
+        nread = read_fd(accept_sockfd, read_buf, read_buf_size);
 
-            const char *rcvd_ok = "Apache 2.2.222 received OK %s\n";
+        size_t write_buf_size = 1024;
+        char *write_buf = (char *) malloc(write_buf_size + 1);
+        if (write_buf == NULL) {
+            fprintf(stderr, "write_no_epoll_fd() write_buf malloc error\n");
+            free(read_buf);
+            ret = 1;
+            break;
+        }
+ 
+        const char *get = "GET";
+        if (strcmp(read_buf, get) > 0) {
+            const char *rcvd_ok = "HTTP/1.1 200 OK %s\n"
+            "Content-Length: %d\n"
+            "Content-Type: text/html; charset=utf-8\n";
             memset(write_buf, 0, write_buf_size + 1);
             //    Difficult to guarantee safety! Use with extreme care!!! Use snprpitf!
-            snprintf(write_buf, write_buf_size - 1, rcvd_ok, read_buf);
+            snprintf(write_buf, write_buf_size - 1, rcvd_ok, read_buf, strlen(data));
 
             if (write(accept_sockfd, write_buf, (strlen(rcvd_ok) + nread)) > 0) {
-                fprintf(stdout, rcvd_ok, read_buf);
+                fprintf(stdout, rcvd_ok, read_buf, strlen(data));
                 fflush(stdout);
             }
+             if (write(accept_sockfd, data, strlen(data)) > 0) {
+                fprintf(stdout, "%s", data);
+                fflush(stdout);
+            }
+        }
 
-            free(write_buf);
-            free(read_buf);
-        } while (1);
+        free(write_buf);
+        free(read_buf);
     }
 
     return ret;
@@ -152,20 +161,31 @@ size_t write_epoll_fd(struct epoll_event *ev) {
 size_t do_network(config_t *config, size_t epoll_off) {
   size_t ret = 0;
 
+  char *css_str = NULL;
+  char *html_str = NULL;
+
   if (strlen(config->css) > 0) {
-    char *css_str = read_file(config->css);
+    css_str = read_file(config->css);
     if (css_str != NULL) {
       fprintf(stdout, "serving css:\n%s\n", css_str);
-      free(css_str);
+//      free(css_str);
     }
   }
   if (strlen(config->html) > 0) {
-    char *html_str = read_file(config->html);
+    html_str = read_file(config->html);
     if (html_str != NULL) {
       fprintf(stdout, "serving html:\n%s\n", html_str);
-      free(html_str);
+//      free(html_str);
     }
   }
+
+  // This is pointer to the strncat destination array, which should contain a C string
+  // and should be large enough to contain the concatenated resulting string which includes the additional null-character.
+  char *csshtml = malloc(strlen(css_str) + strlen(html_str) + 2);
+  assert(csshtml);
+  strncpy(csshtml, css_str, strlen(css_str));
+  strncat(csshtml, html_str, strlen(html_str));
+  fprintf(stdout, "csshtml\n%s\n", csshtml);
 
   size_t sockfd = socket(AF_INET, SOCK_STREAM, 0);
   if (set_sock_opts(sockfd)) {
@@ -212,7 +232,7 @@ size_t do_network(config_t *config, size_t epoll_off) {
     fprintf(stdout, "epoll_off set - don't have epoll on current OS\n");
   }
 
-  if (write_no_epoll_fd(sockfd, (struct sockaddr *)&my_addr, sockaddr_size)) {
+  if (write_no_epoll_fd(sockfd, (struct sockaddr *)&my_addr, sockaddr_size, csshtml)) {
     ret = 1;
     fprintf(stderr, "write_no_epoll_fd(%zu) 1\n", sockfd);
   }
@@ -220,7 +240,7 @@ size_t do_network(config_t *config, size_t epoll_off) {
   if (epoll_off) {
     fprintf(stdout, "epoll_off set\n");
 
-    if (write_no_epoll_fd(sockfd, (struct sockaddr *)&my_addr, sockaddr_size)) {
+    if (write_no_epoll_fd(sockfd, (struct sockaddr *)&my_addr, sockaddr_size, csshtml)) {
       ret = 1;
       fprintf(stderr, "write_no_epoll_fd(%zu) 1\n", sockfd);
     }
@@ -306,6 +326,9 @@ size_t do_network(config_t *config, size_t epoll_off) {
   }
 #endif
 
+  free(csshtml);
+  free(html_str);
+  free(css_str);
   close(sockfd);
   return ret;
 }

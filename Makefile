@@ -20,7 +20,9 @@ CURRENT_KERNEL := $(shell uname -r | sed "s/[-].*$\//")
 PROJECT_OBJECT := output_bin
 
 
-all: installation_doc sanitize format build_bin
+# all: installation_doc sanitize format build
+
+all: build
 
 installation_doc:
 	echo "hi $(CURRENT_KERNEL)\n";
@@ -65,7 +67,7 @@ mem_sanitize: verify_cmds
                 exit 2; \
         else true; fi
 
-build_bin: $(CLANG)
+build: $(CLANG)
 	$(CLANG) $(CLANG_FLAGS_PROJECT) $(CLANG_INCLUDES_PROJECT) $(PROJECT_SRC_DIR)/main.c -o $(PROJECT_OBJECT)
 
 clean:
