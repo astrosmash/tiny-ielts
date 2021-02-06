@@ -20,7 +20,8 @@ static void reverseString(char *str, size_t l) {
 char * reverseVowels(char * s){
 
     const char vowels[] = { 'a', 'A', 'e', 'E', 'i', 'I', 'o', 'O', 'u', 'U' }; 
-    size_t orig_str_len = sizeof(s) / sizeof(char);
+    // size_t orig_str_len = sizeof(s) / sizeof(char);
+    size_t orig_str_len = strlen(s);
     char new_str[orig_str_len + 1];
     fprintf(stdout, "%llu\n", orig_str_len);
 
