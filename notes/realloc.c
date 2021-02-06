@@ -14,7 +14,7 @@ int main(void) {
     fprintf(stdout, "Malloced %p\n", str_new);
 
     mystr_t *str_new_realloc = (mystr_t *) realloc(str_new, sizeof (mystr_t) + 64);
-    assert(str_new_realloc);
+    assert(str_new_realloc); // Indeterminate contents
     fprintf(stdout, "realloc %p\n", str_new_realloc);
 
     if (str_new == str_new_realloc) {

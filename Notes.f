@@ -624,18 +624,34 @@ ip = &dummy;
 }
 
 int *ip;
-f(ip); - f receives a copy of the pointer as we have pass-by-value. To pass by ref we'd need to accept ptr to ptr:
+f(ip); - f receives a copy of the pointer (and alters a copy)!
+as we have pass-by-value. To pass by ref we'd need to accept ptr to ptr:
 
 void f(int **ip)... + f(&ip)
 ------------------------------------------------------------------------------------------------------------------------------------
+Function calls are allowed in initializers only for automatic variables (that is, for local, non-static variables).
+e.g. char *p = malloc(10); is OK as p has an automatic storage type. 
 
 ------------------------------------------------------------------------------------------------------------------------------------
+The malloc/free implementation remembers the size of each block as it is allocated, so it is not necessary to remind it of the size
+when freeing. (Typically, the size is stored adjacent to the allocated block.)
 
 ------------------------------------------------------------------------------------------------------------------------------------
+pointer subtraction is only defined when performed on pointers into the same object.
+
+realloc may not always be able to enlarge memory regions in-place.
+When it is able to, it simply gives you back the same pointer you handed it, but if it must go to some other part of memory
+to find enough contiguous space, it will return a different pointer (and the previous pointer value will become unusable).
+If realloc cannot find enough space at all, it returns a null pointer, and leaves the previous region allocated.
+
+When reallocating memory, be careful if there are any other pointers lying around which point into alias that memory:
+if realloc must locate the new region somewhere else, those other pointers must also be adjusted.
 
 ------------------------------------------------------------------------------------------------------------------------------------
+calloc(m, n) == p = malloc(m * n); memset(p, 0, m * n);
 
 ------------------------------------------------------------------------------------------------------------------------------------
+memdup() = malloc() + memcpy()
 
 ------------------------------------------------------------------------------------------------------------------------------------
 

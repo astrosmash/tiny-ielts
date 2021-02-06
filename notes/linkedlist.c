@@ -66,9 +66,9 @@ int main(void)
 
       my_list->node = (my_array_t*)malloc(sizeof(my_array_t));
       my_list->prev = (linked_list_t*)malloc(sizeof(linked_list_t));
-      my_list->prev->node = (my_array_t*)malloc(sizeof(linked_list_t));
+      my_list->prev->node = (my_array_t*)malloc(sizeof(my_array_t));
       my_list->next = (linked_list_t*)malloc(sizeof(linked_list_t));
-      my_list->next->node = (my_array_t*)malloc(sizeof(linked_list_t));
+      my_list->next->node = (my_array_t*)malloc(sizeof(my_array_t));
 
       memcpy( ((my_list->node) + d)->inner, &my_array[d].inner, strlen(my_array[d].inner)); // or strcpy to copy till \0
       fprintf(stdout, "%s",  (((my_list->node) + d)->inner));
@@ -88,8 +88,8 @@ int main(void)
           {74, 74, 74, 74, 74, 74, 72, 31, 30, 31, 30, 31}
       };
 
-      /*[3]*/char (*suits)[4][3] = (char [][4][3]){ {"abc", "cab", "bca2"}, {"abc2", "cab2", "bc2"} }; // array from 4 ptrs to 3 chars
-      const char *suits_sugar[2][3] = { {"abc", "cab", "bca"}, {"abc2", "cab2", "bca2"} }; // suits_sugar an array of 2 ptrs to 3 const chars (3 char*)
+      /*[3]*/char (*suits)[4][3] = (char [][4][3]){ {"abc", "cab", "bca2"}, {"abc2", "cab2", "bc2"} }; // array of 4 ptrs to array of 3 chars
+      const char *suits_sugar[2][3] = { {"abc", "cab", "bca"}, {"abc2", "cab2", "bca2"} }; // suits_sugar an array of 2 ptrs to arr of 3 const chars (3 char*)
 
       fprintf(stdout, "-----------------------------------\n");
       fprintf(stdout, "%c\n",  myptr[4]);
@@ -157,10 +157,10 @@ int main(void)
       fprintf(stdout, "\n");
       fprintf(stdout, "\n");
 
-      free(my_list->node);
-      free(my_list->next);
-      free(my_list->next->node);
-      free(my_list->prev);
+//      free(my_list->node);
+//      free(my_list->next);
+//      free(my_list->next->node);
+//      free(my_list->prev);
     }
 
     free(my_list);

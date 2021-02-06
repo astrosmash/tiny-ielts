@@ -13,7 +13,7 @@ static void reverseString(char *str, size_t l) {
 	}
 
 	// *str = *new_str; // str[0] = new_str[0]
-	memcpy( str, new_str, strlen(new_str) );
+	memcpy( str, new_str, strlen(new_str) ); // or strcpy
 	// fprintf(stdout, "%s\n", new_str);
 }
 
