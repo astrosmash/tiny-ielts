@@ -39,64 +39,68 @@ size_t read_fd(size_t sockfd, char *read_buf, size_t read_buf_size) {
 }
 
 size_t write_no_epoll_fd(size_t sockfd, struct sockaddr *my_addr,
-                         socklen_t sockaddr_size) {
-  size_t ret = 0;
-  ssize_t accept_sockfd = 0;
+        socklen_t sockaddr_size) {
+    size_t ret = 0;
+    ssize_t accept_sockfd = 0;
 
-  for (;;) {
-    if ((accept_sockfd = accept(sockfd, my_addr, &sockaddr_size)) == -1) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        continue;
-      }
-      fprintf(stderr, "accept() -1 %s\n", strerror(errno));
-      ret = 1;
-      break;
+    for (;;) {
+        if ((accept_sockfd = accept(sockfd, my_addr, &sockaddr_size)) == -1) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                struct timespec tm = {.tv_sec = 1};
+                nanosleep(&tm, NULL);
+                continue;
+            }
+            fprintf(stderr, "accept() -1 %s\n", strerror(errno));
+            ret = 1;
+            break;
+        }
+        do {
+            if (fcntl(accept_sockfd, F_SETFL,
+                    fcntl(accept_sockfd, F_GETFD, 0) | O_NONBLOCK) == -1) {
+                fprintf(stderr, "fcntl(accept) -1 %s\n", strerror(errno));
+                ret = 1;
+                break;
+            }
+
+            fprintf(stdout, "write_no_epoll_fd(%zu) accept %zd\n", sockfd,
+                    accept_sockfd);
+
+            size_t read_buf_size = 1024;
+            char *read_buf = (char *) malloc(read_buf_size + 1);
+            if (read_buf == NULL) {
+                fprintf(stderr, "write_epoll_fd() read_buf malloc error\n");
+                ret = 1;
+                break;
+            }
+            memset(read_buf, 0, read_buf_size + 1);
+            size_t nread = 0;
+            nread = read_fd(accept_sockfd, read_buf, read_buf_size);
+
+            size_t write_buf_size = 1024;
+            char *write_buf = (char *) malloc(write_buf_size + 1);
+            if (write_buf == NULL) {
+                fprintf(stderr, "write_no_epoll_fd() write_buf malloc error\n");
+                free(read_buf);
+                ret = 1;
+                break;
+            }
+
+            const char *rcvd_ok = "Apache 2.2.222 received OK %s\n";
+            memset(write_buf, 0, write_buf_size + 1);
+            //    Difficult to guarantee safety! Use with extreme care!!! Use snprpitf!
+            snprintf(write_buf, write_buf_size - 1, rcvd_ok, read_buf);
+
+            if (write(accept_sockfd, write_buf, (strlen(rcvd_ok) + nread)) > 0) {
+                fprintf(stdout, rcvd_ok, read_buf);
+                fflush(stdout);
+            }
+
+            free(write_buf);
+            free(read_buf);
+        } while (1);
     }
-    if (fcntl(accept_sockfd, F_SETFL,
-              fcntl(accept_sockfd, F_GETFD, 0) | O_NONBLOCK) == -1) {
-      fprintf(stderr, "fcntl(accept) -1 %s\n", strerror(errno));
-      ret = 1;
-      break;
-    }
 
-    fprintf(stdout, "write_no_epoll_fd(%zu) accept %zd\n", sockfd,
-            accept_sockfd);
-
-    size_t read_buf_size = 1024;
-    char *read_buf = (char *)malloc(read_buf_size + 1);
-    if (read_buf == NULL) {
-      fprintf(stderr, "write_epoll_fd() read_buf malloc error\n");
-      ret = 1;
-      break;
-    }
-    memset(read_buf, 0, read_buf_size + 1);
-    size_t nread = 0;
-    nread = read_fd(accept_sockfd, read_buf, read_buf_size);
-
-    size_t write_buf_size = 1024;
-    char *write_buf = (char *)malloc(write_buf_size + 1);
-    if (write_buf == NULL) {
-      fprintf(stderr, "write_no_epoll_fd() write_buf malloc error\n");
-      free(read_buf);
-      ret = 1;
-      break;
-    }
-
-    const char *rcvd_ok = "Apache 2.2.222 received OK %s\n";
-//    Difficult to guarantee safety! Use with extreme care!!! Use snprpitf!
-    memset(write_buf, 0, write_buf_size + 1);
-    snprintf(write_buf, write_buf_size-1, rcvd_ok, read_buf);
-
-    if (write(accept_sockfd, write_buf, (strlen(rcvd_ok) + nread)) > 0) {
-      fprintf(stdout, rcvd_ok, read_buf);
-      fflush(stdout);
-    }
-
-    free(write_buf);
-    free(read_buf);
-  }
-
-  return ret;
+    return ret;
 }
 
 #ifdef __linux__
