@@ -20,10 +20,13 @@ size_t set_sock_opts(size_t sockfd, size_t set_reuse)
 
 
 void alloc_read_write_buf(char *r, char* w, size_t size) {
+    fprintf(stdout, "allocating buffers\n");
     r = (char*)malloc(size + 1);
     w = (char*)malloc(size + 1);
     assert(r);
     assert(w);
+    memset(r, 0, size + 1);
+    memset(w, 0, size + 1);
 }
 
 size_t read_fd(size_t sockfd, char* read_buf, size_t read_buf_size)
@@ -141,7 +144,7 @@ size_t write_no_epoll_fd(size_t sockfd, struct sockaddr* my_addr,
             size_t read_buf_size = 1024;
             size_t write_buf_size = read_buf_size;
             alloc_read_write_buf(read_buf, write_buf, read_buf_size);
-            memset(read_buf, 0, read_buf_size + 1);
+
             ssize_t nread = 0;
             nread = read_fd(accept_sockfd, read_buf, read_buf_size);
             fprintf(stdout, "accept_sockfd nread: %zd\n", nread);
@@ -151,7 +154,6 @@ size_t write_no_epoll_fd(size_t sockfd, struct sockaddr* my_addr,
                 const char* rcvd_ok = "HTTP/1.1 200 OK %s\n"
                                       "Content-Length: %d\n"
                                       "Content-Type: text/html; charset=utf-8\n";
-                memset(write_buf, 0, write_buf_size + 1);
                 //    Difficult to guarantee safety! Use with extreme care!!! Use
                 //    snprpitf!
                 snprintf(write_buf, write_buf_size - 1, rcvd_ok, read_buf,
