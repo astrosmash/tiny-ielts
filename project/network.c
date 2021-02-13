@@ -18,6 +18,14 @@ size_t set_sock_opts(size_t sockfd, size_t set_reuse)
     return 0;
 }
 
+
+void alloc_read_write_buf(char *r, char* w, size_t size) {
+    r = (char*)malloc(size + 1);
+    w = (char*)malloc(size + 1);
+    assert(r);
+    assert(w);
+}
+
 size_t read_fd(size_t sockfd, char* read_buf, size_t read_buf_size)
 {
     ssize_t nread = 0;
@@ -87,22 +95,17 @@ size_t write_no_epoll_fd(size_t sockfd, struct sockaddr* my_addr,
         }
         fprintf(stdout, "select() got %zd\n", num_ready);
         if (FD_ISSET(sockfd, &readfds)) {
-            fprintf(stdout, "ready for reading\n");
-        }
-        if (FD_ISSET(sockfd, &writefds)) {
-            fprintf(stdout, "ready for writing\n");
-        }
-
-        if ((accept_sockfd = accept(sockfd, my_addr, &sockaddr_size)) == -1) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                nanosleep(&tm, NULL);
-                continue;
+            fprintf(stdout, "sockfd ready for reading\n");
+            if ((accept_sockfd = accept(sockfd, my_addr, &sockaddr_size)) == -1) {
+                if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                    nanosleep(&tm, NULL);
+                    continue;
+                }
+                fprintf(stderr, "accept() -1 %s\n", strerror(errno));
+                ret = 1;
+                break;
             }
-            fprintf(stderr, "accept() -1 %s\n", strerror(errno));
-            ret = 1;
-            break;
         }
-
         if (set_sock_opts(accept_sockfd, 0)) {
             fprintf(stderr, "fcntl(accept) -1 %s\n", strerror(errno));
             ret = 1;
@@ -111,23 +114,6 @@ size_t write_no_epoll_fd(size_t sockfd, struct sockaddr* my_addr,
 
         fprintf(stdout, "write_no_epoll_fd(%zu) accept %zd\n", sockfd,
             accept_sockfd);
-
-        size_t read_buf_size = 1024;
-        char* read_buf = (char*)malloc(read_buf_size + 1);
-        if (read_buf == NULL) {
-            fprintf(stderr, "write_epoll_fd() read_buf malloc error\n");
-            ret = 1;
-            break;
-        }
-
-        size_t write_buf_size = 1024;
-        char* write_buf = (char*)malloc(write_buf_size + 1);
-        if (write_buf == NULL) {
-            fprintf(stderr, "write_no_epoll_fd() write_buf malloc error\n");
-            free(read_buf);
-            ret = 1;
-            break;
-        }
 
         timeout.tv_sec = 1;
         timeout.tv_usec = 0;
@@ -148,11 +134,17 @@ size_t write_no_epoll_fd(size_t sockfd, struct sockaddr* my_addr,
             break;
         }
         fprintf(stdout, "select() got %zd\n", num_ready);
+        char* read_buf = NULL;
+        char* write_buf = NULL;
         if (FD_ISSET(accept_sockfd, &readfds)) {
-            fprintf(stdout, "ready for reading\n");
+            fprintf(stdout, "accept_sockfd ready for reading\n");
+            size_t read_buf_size = 1024;
+            size_t write_buf_size = read_buf_size;
+            alloc_read_write_buf(read_buf, write_buf, read_buf_size);
             memset(read_buf, 0, read_buf_size + 1);
             ssize_t nread = 0;
             nread = read_fd(accept_sockfd, read_buf, read_buf_size);
+            fprintf(stdout, "accept_sockfd nread: %zd\n", nread);
 
             if (nread && strtok_read(read_buf)) {
 
@@ -178,6 +170,8 @@ size_t write_no_epoll_fd(size_t sockfd, struct sockaddr* my_addr,
                 }
             }
         }
+        // Sleep before close
+        nanosleep(&tm, NULL);
         close(accept_sockfd);
         free(write_buf);
         free(read_buf);
