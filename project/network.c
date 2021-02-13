@@ -148,29 +148,29 @@ size_t write_no_epoll_fd(size_t sockfd, struct sockaddr* my_addr,
             ssize_t nread = 0;
             nread = read_fd(accept_sockfd, read_buf, read_buf_size);
             fprintf(stdout, "accept_sockfd nread: %zd\n", nread);
-//
-//            if (nread && strtok_read(read_buf)) {
-//
-//                const char* rcvd_ok = "HTTP/1.1 200 OK %s\n"
-//                                      "Content-Length: %d\n"
-//                                      "Content-Type: text/html; charset=utf-8\n";
-//                //    Difficult to guarantee safety! Use with extreme care!!! Use
-//                //    snprpitf!
-//                snprintf(write_buf, write_buf_size - 1, rcvd_ok, read_buf,
-//                    strlen(data));
-//
-//                if (FD_ISSET(accept_sockfd, &writefds)) {
-//                    fprintf(stdout, "ready for writing\n");
-//                    if (write(accept_sockfd, write_buf, (strlen(rcvd_ok) + nread)) > 0) {
-//                        fprintf(stdout, rcvd_ok, read_buf, strlen(data));
-//                        fflush(stdout);
-//                    }
-//                    if (write(accept_sockfd, data, strlen(data)) > 0) {
-//                        fprintf(stdout, "%s", data);
-//                        fflush(stdout);
-//                    }
-//                }
-//            }
+
+            if (nread > 1 && strtok_read(read_buf)) {
+
+                const char* rcvd_ok = "HTTP/1.1 200 OK %s\n"
+                                      "Content-Length: %d\n"
+                                      "Content-Type: text/html; charset=utf-8\n";
+                //    Difficult to guarantee safety! Use with extreme care!!! Use
+                //    snprpitf!
+                snprintf(write_buf, write_buf_size - 1, rcvd_ok, read_buf,
+                    strlen(data));
+
+                if (FD_ISSET(accept_sockfd, &writefds)) {
+                    fprintf(stdout, "ready for writing\n");
+                    if (write(accept_sockfd, write_buf, (strlen(rcvd_ok) + nread)) > 0) {
+                        fprintf(stdout, rcvd_ok, read_buf, strlen(data));
+                        fflush(stdout);
+                    }
+                    if (write(accept_sockfd, data, strlen(data)) > 0) {
+                        fprintf(stdout, "%s", data);
+                        fflush(stdout);
+                    }
+                }
+            }
         }
         // Sleep before close
         nanosleep(&tm, NULL);
