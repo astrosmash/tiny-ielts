@@ -14,6 +14,7 @@
 
 #ifdef __linux__
 #include <sys/epoll.h>
+#include <sys/select.h>
 #endif
 
 #include "config.h"
