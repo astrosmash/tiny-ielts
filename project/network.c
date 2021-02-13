@@ -139,7 +139,7 @@ size_t write_no_epoll_fd(size_t sockfd, struct sockaddr* my_addr,
         fprintf(stdout, "select() got %zd\n", num_ready);
         char* read_buf = NULL;
         char* write_buf = NULL;
-        if (FD_ISSET(accept_sockfd, &readfds)) {
+//        if (FD_ISSET(accept_sockfd, &readfds)) {
             fprintf(stdout, "accept_sockfd ready for reading\n");
             size_t read_buf_size = 1024;
             size_t write_buf_size = read_buf_size;
@@ -171,7 +171,7 @@ size_t write_no_epoll_fd(size_t sockfd, struct sockaddr* my_addr,
                     }
                 }
             }
-        }
+//        }
         // Sleep before close
         nanosleep(&tm, NULL);
         close(accept_sockfd);
