@@ -13,6 +13,7 @@
 #include <sys/socket.h>
 
 #include <gtk/gtk.h>
+#include <cairo.h>
 
 #ifdef __linux__
 #include <sys/epoll.h>
