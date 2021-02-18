@@ -11,8 +11,11 @@ PROJECT_SRC_DIR ?= $(THIS_DIR)project
 CLANG_FLAGS_COMMON += -D__NR_CPUS__=$(NPROC) -O2
 CLANG_INCLUDES_COMMON += -I. -I$(PROJECT_SRC_DIR)/libbpf/include
 
-CLANG_FLAGS_PROJECT += -L$(PROJECT_SRC_DIR) $(CLANG_FLAGS_COMMON) -Wall -Wextra -Wshadow -Wpedantic
-CLANG_INCLUDES_PROJECT += $(CLANG_INCLUDES_COMMON)
+GTK_CFLAGS := $(shell pkg-config --cflags gtk4)
+GTK_INCLUDE := $(shell pkg-config --libs gtk4)
+
+CLANG_FLAGS_PROJECT += -L$(PROJECT_SRC_DIR) $(CLANG_FLAGS_COMMON) $(GTK_CFLAGS) -Wall -Wextra -Wshadow -Wpedantic
+CLANG_INCLUDES_PROJECT += $(CLANG_INCLUDES_COMMON) $(GTK_INCLUDE)
 
 NPROC := $(shell nproc)
 PROJECT_FILES := $(shell ls $(PROJECT_SRC_DIR))

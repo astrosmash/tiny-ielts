@@ -12,6 +12,8 @@
 #include <sys/select.h>
 #include <sys/socket.h>
 
+#include <gtk/gtk.h>
+
 #ifdef __linux__
 #include <sys/epoll.h>
 #include <sys/select.h>
@@ -19,5 +21,6 @@
 
 #include "config.h"
 #include "network.h"
+#include "gui.h"
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))

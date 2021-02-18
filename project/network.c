@@ -18,8 +18,8 @@ size_t set_sock_opts(size_t sockfd, size_t set_reuse)
     return 0;
 }
 
-
-void alloc_read_write_buf(char *r, char* w, size_t size) {
+void alloc_read_write_buf(char* r, char* w, size_t size)
+{
     fprintf(stdout, "allocating buffers\n");
     r = (char*)malloc(size + 1);
     w = (char*)malloc(size + 1);
@@ -139,42 +139,42 @@ size_t write_no_epoll_fd(size_t sockfd, struct sockaddr* my_addr,
         fprintf(stdout, "select() got %zd\n", num_ready);
         char* read_buf = NULL;
         char* write_buf = NULL;
-//        if (FD_ISSET(accept_sockfd, &readfds)) {
-            fprintf(stdout, "accept_sockfd ready for reading\n");
-            size_t read_buf_size = 1024;
-            size_t write_buf_size = read_buf_size;
-            alloc_read_write_buf(read_buf, write_buf, read_buf_size);
+        //        if (FD_ISSET(accept_sockfd, &readfds)) {
+        fprintf(stdout, "accept_sockfd ready for reading\n");
+        size_t read_buf_size = 1024;
+        size_t write_buf_size = read_buf_size;
+        alloc_read_write_buf(read_buf, write_buf, read_buf_size);
 
-            ssize_t nread = 0;
-            nread = read_fd(accept_sockfd, read_buf, read_buf_size);
-            fprintf(stdout, "accept_sockfd nread: %zd\n", nread);
+        ssize_t nread = 0;
+        nread = read_fd(accept_sockfd, read_buf, read_buf_size);
+        fprintf(stdout, "accept_sockfd nread: %zd\n", nread);
 
-            if (nread > 1 && strtok_read(read_buf)) {
+        if (nread > 1 && strtok_read(read_buf)) {
 
-                const char* rcvd_ok = "HTTP/1.1 200 OK %s\n"
-                                      "Content-Length: %d\n"
-                                      "Content-Type: text/html; charset=utf-8\n";
-                //    Difficult to guarantee safety! Use with extreme care!!! Use
-                //    snprpitf!
-                snprintf(write_buf, write_buf_size - 1, rcvd_ok, read_buf,
-                    strlen(data));
+            const char* rcvd_ok = "HTTP/1.1 200 OK %s\n"
+                                  "Content-Length: %d\n"
+                                  "Content-Type: text/html; charset=utf-8\n";
+            //    Difficult to guarantee safety! Use with extreme care!!! Use
+            //    snprpitf!
+            snprintf(write_buf, write_buf_size - 1, rcvd_ok, read_buf,
+                strlen(data));
 
-                if (FD_ISSET(accept_sockfd, &writefds)) {
-                    fprintf(stdout, "ready for writing\n");
-                    if (write(accept_sockfd, write_buf, (strlen(rcvd_ok) + nread)) > 0) {
-                        fprintf(stdout, rcvd_ok, read_buf, strlen(data));
-                        fflush(stdout);
-                    }
-                    if (write(accept_sockfd, data, strlen(data)) > 0) {
-                        fprintf(stdout, "%s", data);
-                        fflush(stdout);
-                    }
+            if (FD_ISSET(accept_sockfd, &writefds)) {
+                fprintf(stdout, "ready for writing\n");
+                if (write(accept_sockfd, write_buf, (strlen(rcvd_ok) + nread)) > 0) {
+                    fprintf(stdout, rcvd_ok, read_buf, strlen(data));
+                    fflush(stdout);
+                }
+                if (write(accept_sockfd, data, strlen(data)) > 0) {
+                    fprintf(stdout, "%s", data);
+                    fflush(stdout);
                 }
             }
-//        }
+        }
+        //        }
         // Sleep before close
         nanosleep(&tm, NULL);
-//        close(accept_sockfd);
+        //        close(accept_sockfd);
         free(write_buf);
         free(read_buf);
     }
