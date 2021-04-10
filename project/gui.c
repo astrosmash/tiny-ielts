@@ -108,7 +108,6 @@ void print_hello(void)
     if ((thread_status = t_init())) {
         fprintf(stderr, "Cannot launch THREAD = %zd\n", thread_status);
     }
-    t_print_hello();
 
     //    GtkWidget* inside_window = gtk_application_window_new();
     //    assert(inside_window);
