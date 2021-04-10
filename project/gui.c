@@ -12,7 +12,7 @@ Gui* Gui_Construct(void)
 
 void Gui_Destruct(Gui* const g)
 {
-    assert(g);
+//    assert(g);
     fprintf(stdout, "class Gui: freed object on %p\n", g);
     free(g);
 }
@@ -103,6 +103,12 @@ void print_hello(void)
     fprintf(stdout, "button clicked...\n");
     fprintf(stdout, "gui name: %s\n", Gui_GetName(my_gui));
     g_print("button clicked...\n");
+
+    ssize_t thread_status = 0;
+    if ((thread_status = t_init())) {
+        fprintf(stderr, "Cannot launch THREAD = %zd\n", thread_status);
+    }
+    t_print_hello();
 
     //    GtkWidget* inside_window = gtk_application_window_new();
     //    assert(inside_window);
