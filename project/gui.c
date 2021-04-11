@@ -12,7 +12,7 @@ Gui* Gui_Construct(void)
 
 void Gui_Destruct(Gui* const g)
 {
-//    assert(g);
+    //    assert(g);
     fprintf(stdout, "class Gui: freed object on %p\n", g);
     free(g);
 }
@@ -81,7 +81,6 @@ void gui_exit(void)
     my_gui = NULL;
 }
 
-
 void activate()
 {
     GtkWidget* window = NULL;
@@ -106,22 +105,23 @@ void activate()
     assert(button);
     g_signal_connect(button, "clicked", G_CALLBACK(print_hello), NULL);
     gtk_grid_attach(GTK_GRID(grid), button, 1, 0, 1, 1);
- 
+
     button = gtk_button_new_with_label("Quit");
     assert(button);
     g_signal_connect_swapped(button, "clicked", G_CALLBACK(gui_exit), window);
     gtk_grid_attach(GTK_GRID(grid), button, 0, 1, 2, 1);
- 
+
     gtk_widget_show_all(window);
 }
 
 typedef struct {
-    GtkWidget *window;
-    guint *progress;
+    GtkWidget* window;
+    guint* progress;
 } WorkerData;
 
-void run_thread(void) {
-    WorkerData *worker_data = NULL;
+void run_thread(void)
+{
+    WorkerData* worker_data = NULL;
     GThread* thread = NULL;
     thread = g_thread_new("worker", print_hello, worker_data);
 
@@ -130,7 +130,7 @@ void run_thread(void) {
     g_thread_unref(thread);
 }
 
-void *print_hello(void *arg)
+void* print_hello(void* arg)
 {
     g_print("button clicked...\n");
     fprintf(stdout, "gui name: %s\n", Gui_GetName(my_gui));

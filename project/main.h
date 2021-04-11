@@ -13,8 +13,8 @@
 #include <sys/select.h>
 #include <sys/socket.h>
 
-#include <gtk/gtk.h>
 #include <cairo.h>
+#include <gtk/gtk.h>
 
 #ifdef __linux__
 #include <sys/epoll.h>

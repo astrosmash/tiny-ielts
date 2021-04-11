@@ -14,7 +14,7 @@ Thread* Thread_Construct(void)
 
 void Thread_Destruct(Thread* const t)
 {
-//    assert(t);
+    //    assert(t);
     fprintf(stdout, "class Thread: freed object on %p\n", t);
     free(t);
 }
@@ -64,13 +64,13 @@ static void _Thread_SetName(Thread* t, char* name)
     strncpy(t->name, name, strlen(name));
 }
 
-void *t_print_hello(void *arg)
+void* t_print_hello(void* arg)
 {
     fprintf(stdout, "class Thread: t_print_hello...\n");
     do_network(arg, 0);
     return "exit_success";
-//    Thread_Destruct(my_thread);
-//    my_thread = NULL;
+    //    Thread_Destruct(my_thread);
+    //    my_thread = NULL;
 }
 
 Thread* my_thread = NULL;
@@ -96,7 +96,7 @@ ssize_t t_init(void* arg)
     assert(!op_status);
 
     fprintf(stdout, "class Thread: joined id %zu ", Thread_GetNum(my_thread));
-    char* ret_res = (char *)res;
+    char* ret_res = (char*)res;
     fprintf(stdout, "status %s...\n", ret_res);
 
     return op_status;
