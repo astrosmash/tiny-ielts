@@ -12,7 +12,6 @@ Thread* Thread_Construct(void)
     return t;
 }
 
-
 void Thread_Destruct(Thread* const t)
 {
 //    assert(t);
@@ -21,6 +20,7 @@ void Thread_Destruct(Thread* const t)
 }
 
 // Public methods
+// Setters
 static void Thread_SetId(Thread* const t, pthread_t id)
 {
     t->id = id;
@@ -36,6 +36,7 @@ static void Thread_SetNum(Thread* const t, size_t num)
     t->num = num;
 }
 
+// Getters
 pthread_t Thread_GetId(Thread* const t)
 {
     return t->id;
@@ -70,7 +71,6 @@ void *t_print_hello(void *arg)
 //    Thread_Destruct(my_thread);
 //    my_thread = NULL;
 }
-
 
 Thread* my_thread = NULL;
 
