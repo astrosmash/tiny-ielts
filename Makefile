@@ -11,8 +11,15 @@ PROJECT_SRC_DIR ?= $(THIS_DIR)project
 CLANG_FLAGS_COMMON += -D__NR_CPUS__=$(NPROC) -O2
 CLANG_INCLUDES_COMMON += -I. -I$(PROJECT_SRC_DIR)/libbpf/include
 
-GTK_CFLAGS := $(shell pkg-config --cflags gtk4)
-GTK_INCLUDE := $(shell pkg-config --libs gtk4)
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S), Darwin)
+GTK = gtk+-3.0
+else
+GTK = gtk+-3.0-1
+endif
+
+GTK_CFLAGS := $(shell pkg-config --cflags $(GTK))
+GTK_INCLUDE := $(shell pkg-config --libs $(GTK))
 
 CLANG_FLAGS_PROJECT += -L$(PROJECT_SRC_DIR) $(CLANG_FLAGS_COMMON) $(GTK_CFLAGS) -Wall -Wextra -Wshadow -Wpedantic
 CLANG_INCLUDES_PROJECT += $(CLANG_INCLUDES_COMMON) $(GTK_INCLUDE)
@@ -31,9 +38,13 @@ installation_doc:
 	echo "hi $(CURRENT_KERNEL)\n";
 
 # Verify that compiler and tools are available
-.PHONY: verify_cmds $(CLANG) $(CPPCHECK) $(SCAN-BUILD) $(CLANG-FORMAT) $(GCC) $(VALGRIND)
-
-verify_cmds: $(CLANG) $(CPPCHECK) $(SCAN-BUILD) $(CLANG-FORMAT) $(GCC) $(VALGRIND)
+ifeq ($(UNAME_S), Darwin)
+.PHONY: verify_cmds $(CLANG) $(CPPCHECK) $(CLANG-FORMAT) $(GCC)
+verify_cmds: $(CLANG) $(CPPCHECK) $(CLANG-FORMAT) $(GCC)
+else
+.PHONY: verify_cmds $(CLANG) $(CPPCHECK) $(CLANG-FORMAT) $(GCC) $(SCAN-BUILD) $(VALGRIND)
+verify_cmds: $(CLANG) $(CPPCHECK) $(CLANG-FORMAT) $(GCC) $(SCAN-BUILD) $(VALGRIND)
+endif
 	@for TOOL in $^ ; do \
 		if ! (which -- "$${TOOL}" > /dev/null 2>&1); then \
 			echo "*** ERROR: Cannot find tool $${TOOL}" ;\
@@ -59,7 +70,7 @@ sanitize: verify_cmds
 format: verify_cmds
 	@for FILE in $(PROJECT_FILES) ; do \
 		if ! ($(CLANG-FORMAT) -style='Webkit' $(PROJECT_SRC_DIR)/"$${FILE}" > /tmp/"$${FILE}" && diff $(PROJECT_SRC_DIR)/"$${FILE}" /tmp/"$${FILE}"); then \
-			echo "*** ERROR: consider $(CLANG-FORMAT) -verbose project/"$${FILE}" > /tmp/"$${FILE}" && mv /tmp/"$${FILE}" project/"$${FILE}"" ;\
+			echo "*** ERROR: consider $(CLANG-FORMAT) -verbose -style='Webkit' project/"$${FILE}" > /tmp/"$${FILE}" && mv /tmp/"$${FILE}" project/"$${FILE}"" ;\
 			exit 3; \
 		else true; fi; \
 	done
