@@ -1,24 +1,42 @@
 // Gui ctor & dtor
 #define Gui_Init (*Gui_Construct)
 
-Gui* Gui_Construct(void)
+Gui* Gui_Construct(int argc, char** argv, config_t* config)
 {
     Gui* g = malloc(sizeof(Gui));
     assert(g);
+
     _Gui_SetName(g, "myggtk_gui");
-    fprintf(stdout, "class Gui: allocated new object on %p\n", g);
+    debug("allocated new object on %p\n", (void*)g);
+
+    GtkApplication* app = gtk_application_new("org.gtk.tinyIelts", G_APPLICATION_FLAGS_NONE);
+    assert(app);
+
+    gui_runtime_config* my_app_config = malloc(sizeof(gui_runtime_config));
+    assert(my_app_config);
+
+    my_app_config->my_config = config;
+    my_app_config->my_gui = g;
+
+    g_signal_connect(app, "activate", G_CALLBACK(activate), my_app_config);
+    Gui_SetApp(g, app);
+
+    ssize_t gui_status = g_application_run(G_APPLICATION(app), argc, argv);
+    assert(!gui_status);
+
+    g_object_unref(app);
     return g;
 }
 
 void Gui_Destruct(Gui* const g)
 {
-    //    assert(g);
-    fprintf(stdout, "class Gui: freed object on %p\n", g);
+    debug("freed object on %p\n", (void*)g);
     free(g);
 }
 
 // Public methods
 // Setters
+
 static void Gui_SetApp(Gui* const g, GtkApplication* app)
 {
     g->app = app;
@@ -30,6 +48,7 @@ static void Gui_SetUserData(Gui* const g, gpointer user_data)
 }
 
 // Getters
+
 GtkApplication* Gui_GetApp(Gui* const g)
 {
     return g->app;
@@ -46,98 +65,90 @@ char* Gui_GetName(Gui* const g)
 }
 
 // Private methods
+
 static void _Gui_SetName(Gui* g, char* name)
 {
     assert(name);
     strncpy(g->name, name, strlen(name));
 }
 
-Gui* my_gui = NULL;
-config_t* my_config = NULL;
+// Callback for exit button that calls dtor
 
-ssize_t gui_init(int argc, char** argv, config_t* config)
+static void gui_exit(gpointer data, GtkWidget* widget)
 {
-    my_gui = Gui_Init();
-
-    GtkApplication* app;
-    app = gtk_application_new("org.gtk.tinyIelts", G_APPLICATION_FLAGS_NONE);
-    assert(app);
-
-    g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
-
-    Gui_SetApp(my_gui, app);
-    my_config = config;
-
-    ssize_t gui_status = g_application_run(G_APPLICATION(app), argc, argv);
-    g_object_unref(app);
-    return gui_status;
+    gui_runtime_config* g_config = data;
+    debug("freeing %s\n", Gui_GetName(g_config->my_gui));
+    Gui_Destruct(g_config->my_gui);
 }
 
-void gui_exit(void)
+static void activate(GtkWidget* widget, gpointer data)
 {
-    fprintf(stdout, "exiting... gui name: %s\n", Gui_GetName(my_gui));
-
-    Gui_Destruct(my_gui);
-    my_gui = NULL;
-}
-
-void activate()
-{
+    gui_runtime_config* g_config = data;
     GtkWidget* window = NULL;
     GtkWidget* button = NULL;
     GtkWidget* grid = NULL;
 
-    window = gtk_application_window_new(Gui_GetApp(my_gui));
+    debug("activating %s\n", Gui_GetName(g_config->my_gui));
+    window = gtk_application_window_new(Gui_GetApp(g_config->my_gui));
     assert(window);
+
     gtk_window_set_title(GTK_WINDOW(window), "tiny-ielts");
     gtk_window_set_default_size(GTK_WINDOW(window), 360, 180);
 
     grid = gtk_grid_new();
     assert(grid);
+
     gtk_container_add(GTK_CONTAINER(window), grid);
 
     button = gtk_button_new_with_label("Start");
     assert(button);
-    g_signal_connect(button, "clicked", G_CALLBACK(run_thread), NULL);
+    g_signal_connect(button, "clicked", G_CALLBACK(run_thread), g_config);
     gtk_grid_attach(GTK_GRID(grid), button, 0, 0, 1, 1);
 
     button = gtk_button_new_with_label("Stop");
     assert(button);
-    g_signal_connect(button, "clicked", G_CALLBACK(print_hello), NULL);
+    g_signal_connect(button, "clicked", G_CALLBACK(run_thread), g_config);
     gtk_grid_attach(GTK_GRID(grid), button, 1, 0, 1, 1);
 
     button = gtk_button_new_with_label("Quit");
     assert(button);
-    g_signal_connect_swapped(button, "clicked", G_CALLBACK(gui_exit), window);
+    g_signal_connect_swapped(button, "clicked", G_CALLBACK(gui_exit), g_config);
     gtk_grid_attach(GTK_GRID(grid), button, 0, 1, 2, 1);
 
     gtk_widget_show_all(window);
 }
 
-typedef struct {
-    GtkWidget* window;
-    guint* progress;
-} WorkerData;
-
-void run_thread(void)
+static void run_thread(GtkWidget* widget, gpointer data)
 {
-    WorkerData* worker_data = NULL;
+    gui_runtime_config* g_config = data;
     GThread* thread = NULL;
-    thread = g_thread_new("worker", print_hello, worker_data);
 
+    thread = g_thread_new("worker", print_hello, g_config);
     assert(thread);
-    fprintf(stdout, "GThread launched: %s\n", Gui_GetName(my_gui));
+
+    debug("launching thread %s\n", Gui_GetName(g_config->my_gui));
     g_thread_unref(thread);
 }
 
-void* print_hello(void* arg)
+static void* t_print_hello(void* data)
 {
-    g_print("button clicked...\n");
-    fprintf(stdout, "gui name: %s\n", Gui_GetName(my_gui));
+    gui_runtime_config* g_config = data;
+    do_network(g_config->my_config, 0);
 
-    ssize_t thread_status = t_init(my_config);
-    if ((thread_status = t_init(my_config))) {
-        fprintf(stderr, "Cannot launch THREAD = %zd\n", thread_status);
+    return "launched ok";
+    //    Thread_Destruct(g);
+    //    g = NULL;
+}
+
+static void* print_hello(void* data)
+{
+    gui_runtime_config* g_config = data;
+
+    g_print("print_hello button clicked...\n");
+    Thread* my_thread = NULL;
+    if (((my_thread = Thread_Init(&t_print_hello, &g_config->my_config)) == NULL)) {
+        debug("cannot launch thread! %s\n", Gui_GetName(g_config->my_gui));
+        fprintf(stderr, "[print_hello] cannot launch thread\n");
     }
     //    do_network(my_config, 0);
     return NULL;

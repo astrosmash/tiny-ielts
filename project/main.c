@@ -52,10 +52,9 @@ int main(int argc, char** argv)
 
         if (gui) {
             fprintf(stdout, "gui set\n");
-            ssize_t gui_status = 0;
-            if ((gui_status = gui_init(0, NULL, config_str))) {
-                fprintf(stderr, "Cannot launch GUI = %zd\n", gui_status);
-                return gui_status;
+            Gui* main_gui = NULL;
+            if (((main_gui = Gui_Init(0, NULL, config_str)) == NULL)) {
+                fprintf(stderr, "Cannot launch GUI\n");
             }
         }
         free_config(config_str);

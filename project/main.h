@@ -21,8 +21,13 @@
 #include <sys/select.h>
 #endif
 
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+#define debug(fmt, ...)                                                                     \
+    do {                                                                                    \
+        if (DEBUG)                                                                          \
+            fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, __VA_ARGS__); \
+    } while (0)
+
 #include "config.h"
 #include "network.h"
 #include "gui.h"
-
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
