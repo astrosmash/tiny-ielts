@@ -77,14 +77,24 @@ void activate()
 {
     GtkWidget* window = NULL;
     GtkWidget* button = NULL;
+//    GtkWidget* button_box = NULL;
 
     window = gtk_application_window_new(Gui_GetApp(my_gui));
     assert(window);
     gtk_window_set_title(GTK_WINDOW(window), "tiny-ielts");
     gtk_window_set_default_size(GTK_WINDOW(window), 360, 180);
+
+//    button_box = gtk_button_box_new(GTK_ORIENTATION_HORIZONTAL);
+//    assert(button_box);
+//    gtk_container_add(GTK_CONTAINER(window), button_box);
+
+    button = gtk_button_new_with_label("start");
+    assert(button);
+    g_signal_connect(button, "clicked", G_CALLBACK(print_hello), NULL);
+    g_signal_connect_swapped(button, "clicked", G_CALLBACK(print_bye), window);
+    gtk_container_add(GTK_CONTAINER(window), button);
+
     gtk_widget_show_all(window);
-//    button = gtk_button_new_with_label("start");
-//    assert(button);
 //
 //    GtkStyleContext* context = gtk_widget_get_style_context(button);
 //    GtkCssProvider* provider = gtk_css_provider_new();
@@ -118,6 +128,14 @@ void print_hello(void)
     //    gtk_window_set_title(GTK_WINDOW(inside_window), "tiny-ielts");
     //    gtk_window_set_default_size(GTK_WINDOW(inside_window), 665, 400);
     //    do_network(my_config, 0);
+}
+
+void print_bye(void)
+{
+    fprintf(stdout, "bye button clicked...\n");
+    fprintf(stdout, "gui name: %s\n", Gui_GetName(my_gui));
+    g_print("button clicked...\n");
+
     Gui_Destruct(my_gui);
     my_gui = NULL;
 }
