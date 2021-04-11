@@ -73,69 +73,57 @@ ssize_t gui_init(int argc, char** argv, config_t* config)
     return gui_status;
 }
 
+void gui_exit(void)
+{
+    fprintf(stdout, "exiting... gui name: %s\n", Gui_GetName(my_gui));
+
+    Gui_Destruct(my_gui);
+    my_gui = NULL;
+}
+
+
 void activate()
 {
     GtkWidget* window = NULL;
     GtkWidget* button = NULL;
-//    GtkWidget* button_box = NULL;
+    GtkWidget* grid = NULL;
 
     window = gtk_application_window_new(Gui_GetApp(my_gui));
     assert(window);
     gtk_window_set_title(GTK_WINDOW(window), "tiny-ielts");
     gtk_window_set_default_size(GTK_WINDOW(window), 360, 180);
 
-//    button_box = gtk_button_box_new(GTK_ORIENTATION_HORIZONTAL);
-//    assert(button_box);
-//    gtk_container_add(GTK_CONTAINER(window), button_box);
+    grid = gtk_grid_new();
+    assert(grid);
+    gtk_container_add(GTK_CONTAINER(window), grid);
 
-    button = gtk_button_new_with_label("start");
+    button = gtk_button_new_with_label("Start");
     assert(button);
     g_signal_connect(button, "clicked", G_CALLBACK(print_hello), NULL);
-    g_signal_connect_swapped(button, "clicked", G_CALLBACK(print_bye), window);
-    gtk_container_add(GTK_CONTAINER(window), button);
+    gtk_grid_attach(GTK_GRID(grid), button, 0, 0, 1, 1);
 
+    button = gtk_button_new_with_label("Stop");
+    assert(button);
+    g_signal_connect(button, "clicked", G_CALLBACK(print_hello), NULL);
+    gtk_grid_attach(GTK_GRID(grid), button, 1, 0, 1, 1);
+ 
+    button = gtk_button_new_with_label("Quit");
+    assert(button);
+    g_signal_connect_swapped(button, "clicked", G_CALLBACK(gui_exit), window);
+    gtk_grid_attach(GTK_GRID(grid), button, 0, 1, 2, 1);
+ 
     gtk_widget_show_all(window);
-//
-//    GtkStyleContext* context = gtk_widget_get_style_context(button);
-//    GtkCssProvider* provider = gtk_css_provider_new();
-//    assert(context);
-//    assert(provider);
-//
-//    const char* button_css = "button {background-image: none; background-color: rgb(255, 255, 0); color: green;}";
-//    gtk_css_provider_load_from_data(provider, button_css, strlen(button_css), NULL);
-//    gtk_style_context_add_provider(context, GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
-//    g_object_unref(provider);
-//
-//    g_signal_connect(button, "clicked", G_CALLBACK(print_hello), NULL);
-//
-//    gtk_container_add(GTK_CONTAINER(window), button);
-//    gtk_window_present(GTK_WINDOW(window));
 }
 
 void print_hello(void)
 {
-    fprintf(stdout, "button clicked...\n");
-    fprintf(stdout, "gui name: %s\n", Gui_GetName(my_gui));
     g_print("button clicked...\n");
+    fprintf(stdout, "gui name: %s\n", Gui_GetName(my_gui));
 
     ssize_t thread_status = 0;
     if ((thread_status = t_init())) {
         fprintf(stderr, "Cannot launch THREAD = %zd\n", thread_status);
     }
-
-    //    GtkWidget* inside_window = gtk_application_window_new();
-    //    assert(inside_window);
-    //    gtk_window_set_title(GTK_WINDOW(inside_window), "tiny-ielts");
-    //    gtk_window_set_default_size(GTK_WINDOW(inside_window), 665, 400);
     //    do_network(my_config, 0);
 }
 
-void print_bye(void)
-{
-    fprintf(stdout, "bye button clicked...\n");
-    fprintf(stdout, "gui name: %s\n", Gui_GetName(my_gui));
-    g_print("button clicked...\n");
-
-    Gui_Destruct(my_gui);
-    my_gui = NULL;
-}
