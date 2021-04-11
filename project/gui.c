@@ -99,7 +99,7 @@ void activate()
 
     button = gtk_button_new_with_label("Start");
     assert(button);
-    g_signal_connect(button, "clicked", G_CALLBACK(print_hello), NULL);
+    g_signal_connect(button, "clicked", G_CALLBACK(run_thread), NULL);
     gtk_grid_attach(GTK_GRID(grid), button, 0, 0, 1, 1);
 
     button = gtk_button_new_with_label("Stop");
@@ -115,15 +115,30 @@ void activate()
     gtk_widget_show_all(window);
 }
 
-void print_hello(void)
+typedef struct {
+    GtkWidget *window;
+    guint *progress;
+} WorkerData;
+
+void run_thread(void) {
+    WorkerData *worker_data = NULL;
+    GThread* thread = NULL;
+    thread = g_thread_new("worker", print_hello, worker_data);
+
+    assert(thread);
+    fprintf(stdout, "GThread launched: %s\n", Gui_GetName(my_gui));
+    g_thread_unref(thread);
+}
+
+void *print_hello(void *arg)
 {
     g_print("button clicked...\n");
     fprintf(stdout, "gui name: %s\n", Gui_GetName(my_gui));
 
-    ssize_t thread_status = 0;
-    if ((thread_status = t_init())) {
+    ssize_t thread_status = t_init(my_config);
+    if ((thread_status = t_init(my_config))) {
         fprintf(stderr, "Cannot launch THREAD = %zd\n", thread_status);
     }
     //    do_network(my_config, 0);
+    return NULL;
 }
-

@@ -67,6 +67,7 @@ static void _Thread_SetName(Thread* t, char* name)
 void *t_print_hello(void *arg)
 {
     fprintf(stdout, "class Thread: t_print_hello...\n");
+    do_network(arg, 0);
     return "exit_success";
 //    Thread_Destruct(my_thread);
 //    my_thread = NULL;
@@ -74,7 +75,7 @@ void *t_print_hello(void *arg)
 
 Thread* my_thread = NULL;
 
-ssize_t t_init(void)
+ssize_t t_init(void* arg)
 {
     my_thread = Thread_Init();
     ssize_t op_status = 0;
@@ -84,7 +85,7 @@ ssize_t t_init(void)
     //    op_status = pthread_attr_setstacksize(&my_thread->attr, 4096);
     //    assert(!op_status);
 
-    op_status = pthread_create(&my_thread->id, &my_thread->attr, &t_print_hello, NULL);
+    op_status = pthread_create(&my_thread->id, &my_thread->attr, &t_print_hello, arg);
     assert(!op_status);
 
     op_status = pthread_attr_destroy(&my_thread->attr);

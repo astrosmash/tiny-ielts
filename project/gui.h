@@ -3,8 +3,8 @@
 extern ssize_t gui_init(int, char**, config_t*);
 
 extern void activate(GtkApplication*, gpointer);
-extern void print_hello(void);
-extern void print_bye(void);
+extern void run_thread(void);
+extern void *print_hello(void *);
 
 // class Gui
 #define maxGuiNameLength 255
