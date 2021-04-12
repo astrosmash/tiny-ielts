@@ -42,7 +42,6 @@ static void _Gui_SetName(Gui*, char*);
 // Static methods
 // Callback for exit button that calls dtor, called with swapped params
 static void gui_exit(gpointer, GtkWidget*);
-static void activate(GtkWidget*, gpointer);
 static void run_thread(GtkWidget*, gpointer);
 static void* t_print_hello(void*);
 static void* print_hello(void*);

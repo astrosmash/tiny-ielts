@@ -9,22 +9,46 @@ Gui* Gui_Construct(int argc, char** argv, config_t* config)
     _Gui_SetName(g, "myggtk_gui");
     debug("allocated new object on %p\n", (void*)g);
 
-    GtkApplication* app = gtk_application_new("org.gtk.tinyIelts", G_APPLICATION_FLAGS_NONE);
-    assert(app);
-
     gui_runtime_config* my_app_config = malloc(sizeof(gui_runtime_config));
     assert(my_app_config);
 
     my_app_config->my_config = config;
     my_app_config->my_gui = g;
 
-    g_signal_connect(app, "activate", G_CALLBACK(activate), my_app_config);
-    Gui_SetApp(g, app);
+    GtkWidget* window = NULL;
+    GtkWidget* button = NULL;
+    GtkWidget* grid = NULL;
 
-    ssize_t gui_status = g_application_run(G_APPLICATION(app), argc, argv);
-    assert(!gui_status);
+    gtk_init(&argc, &argv);
 
-    g_object_unref(app);
+    window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    assert(window);
+
+    gtk_window_set_title(GTK_WINDOW(window), "tiny-ielts");
+    //    gtk_window_set_default_size(GTK_WINDOW(window), 360, 180);
+    g_signal_connect(window, "delete_event", G_CALLBACK(gui_exit), config);
+
+    grid = gtk_grid_new();
+    assert(grid);
+
+    gtk_container_add(GTK_CONTAINER(window), grid);
+
+    button = gtk_button_new_with_label("Start");
+    assert(button);
+    g_signal_connect(button, "clicked", G_CALLBACK(run_thread), my_app_config);
+    gtk_grid_attach(GTK_GRID(grid), button, 0, 0, 1, 1);
+
+    button = gtk_button_new_with_label("Stop");
+    assert(button);
+    g_signal_connect(button, "clicked", G_CALLBACK(run_thread), my_app_config);
+    gtk_grid_attach(GTK_GRID(grid), button, 1, 0, 1, 1);
+
+    button = gtk_button_new_with_label("Quit");
+    assert(button);
+    g_signal_connect_swapped(button, "clicked", G_CALLBACK(gui_exit), config);
+    gtk_grid_attach(GTK_GRID(grid), button, 0, 1, 2, 1);
+
+    gtk_widget_show_all(window);
     return g;
 }
 
@@ -79,43 +103,6 @@ static void gui_exit(gpointer data, GtkWidget* widget)
     gui_runtime_config* g_config = data;
     debug("freeing %s\n", Gui_GetName(g_config->my_gui));
     Gui_Destruct(g_config->my_gui);
-}
-
-static void activate(GtkWidget* widget, gpointer data)
-{
-    gui_runtime_config* g_config = data;
-    GtkWidget* window = NULL;
-    GtkWidget* button = NULL;
-    GtkWidget* grid = NULL;
-
-    debug("activating %s\n", Gui_GetName(g_config->my_gui));
-    window = gtk_application_window_new(Gui_GetApp(g_config->my_gui));
-    assert(window);
-
-    gtk_window_set_title(GTK_WINDOW(window), "tiny-ielts");
-    gtk_window_set_default_size(GTK_WINDOW(window), 360, 180);
-
-    grid = gtk_grid_new();
-    assert(grid);
-
-    gtk_container_add(GTK_CONTAINER(window), grid);
-
-    button = gtk_button_new_with_label("Start");
-    assert(button);
-    g_signal_connect(button, "clicked", G_CALLBACK(run_thread), g_config);
-    gtk_grid_attach(GTK_GRID(grid), button, 0, 0, 1, 1);
-
-    button = gtk_button_new_with_label("Stop");
-    assert(button);
-    g_signal_connect(button, "clicked", G_CALLBACK(run_thread), g_config);
-    gtk_grid_attach(GTK_GRID(grid), button, 1, 0, 1, 1);
-
-    button = gtk_button_new_with_label("Quit");
-    assert(button);
-    g_signal_connect_swapped(button, "clicked", G_CALLBACK(gui_exit), g_config);
-    gtk_grid_attach(GTK_GRID(grid), button, 0, 1, 2, 1);
-
-    gtk_widget_show_all(window);
 }
 
 static void run_thread(GtkWidget* widget, gpointer data)

@@ -56,6 +56,8 @@ int main(int argc, char** argv)
             if (((main_gui = Gui_Init(0, NULL, config_str)) == NULL)) {
                 fprintf(stderr, "Cannot launch GUI\n");
             }
+            fprintf(stdout, "gui launched\n");
+            gtk_main();
         }
         free_config(config_str);
     }
