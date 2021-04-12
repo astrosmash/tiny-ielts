@@ -15,6 +15,7 @@ typedef struct {
 typedef struct {
     config_t* my_config;
     Gui* my_gui;
+    Thread* child_thread;
 
     struct {
         GtkWidget* window;
@@ -41,6 +42,7 @@ static void _Gui_SetName(Gui*, char*);
 // Callback for exit button that calls dtor, called with swapped params
 static void Gui_Exit(gpointer, GtkWidget*);
 //static void Gui_RunChildThread(GtkWidget*, gpointer);
+static void Gui_JoinThread(GtkWidget*, gpointer);
 static void* _Gui_RunChildThread(GtkWidget*, gpointer);
 static void* thread_func(void*);
 
