@@ -26,26 +26,25 @@ Gui* Gui_Construct(int argc, char** argv, config_t* config)
 
     gtk_window_set_title(GTK_WINDOW(window), "tiny-ielts");
     //    gtk_window_set_default_size(GTK_WINDOW(window), 360, 180);
-    g_signal_connect(window, "delete_event", G_CALLBACK(gui_exit), config);
+    g_signal_connect_swapped(window, "delete_event", G_CALLBACK(Gui_Exit), config);
 
     grid = gtk_grid_new();
     assert(grid);
-
     gtk_container_add(GTK_CONTAINER(window), grid);
 
     button = gtk_button_new_with_label("Start");
     assert(button);
-    g_signal_connect(button, "clicked", G_CALLBACK(run_thread), my_app_config);
+    g_signal_connect(button, "clicked", G_CALLBACK(Gui_RunChildThread), my_app_config);
     gtk_grid_attach(GTK_GRID(grid), button, 0, 0, 1, 1);
 
     button = gtk_button_new_with_label("Stop");
     assert(button);
-    g_signal_connect(button, "clicked", G_CALLBACK(run_thread), my_app_config);
+    g_signal_connect(button, "clicked", G_CALLBACK(Gui_RunChildThread), my_app_config);
     gtk_grid_attach(GTK_GRID(grid), button, 1, 0, 1, 1);
 
     button = gtk_button_new_with_label("Quit");
     assert(button);
-    g_signal_connect_swapped(button, "clicked", G_CALLBACK(gui_exit), config);
+    g_signal_connect_swapped(button, "clicked", G_CALLBACK(Gui_Exit), my_app_config);
     gtk_grid_attach(GTK_GRID(grid), button, 0, 1, 2, 1);
 
     gtk_widget_show_all(window);
@@ -98,44 +97,39 @@ static void _Gui_SetName(Gui* g, char* name)
 
 // Callback for exit button that calls dtor
 
-static void gui_exit(gpointer data, GtkWidget* widget)
+static void Gui_Exit(gpointer data, GtkWidget* widget)
 {
     gui_runtime_config* g_config = data;
     debug("freeing %s\n", Gui_GetName(g_config->my_gui));
     Gui_Destruct(g_config->my_gui);
 }
 
-static void run_thread(GtkWidget* widget, gpointer data)
+static void Gui_RunChildThread(GtkWidget* widget, gpointer data)
 {
     gui_runtime_config* g_config = data;
     GThread* thread = NULL;
 
-    thread = g_thread_new("worker", print_hello, g_config);
+    thread = g_thread_new("worker", _Gui_RunChildThread, g_config);
     assert(thread);
 
     debug("launching thread %s\n", Gui_GetName(g_config->my_gui));
     g_thread_unref(thread);
 }
 
-static void* t_print_hello(void* data)
+static void* thread_func(void* data)
 {
     gui_runtime_config* g_config = data;
     do_network(g_config->my_config, 0);
-
-    return "launched ok";
-    //    Thread_Destruct(g);
-    //    g = NULL;
+    return "thread_func launched ok";
 }
 
-static void* print_hello(void* data)
+static void* _Gui_RunChildThread(void* data)
 {
     gui_runtime_config* g_config = data;
-
-    g_print("print_hello button clicked...\n");
     Thread* my_thread = NULL;
-    if (((my_thread = Thread_Init(&t_print_hello, &g_config->my_config)) == NULL)) {
-        debug("cannot launch thread! %s\n", Gui_GetName(g_config->my_gui));
-        fprintf(stderr, "[print_hello] cannot launch thread\n");
+
+    if (((my_thread = Thread_Init(&thread_func, &g_config->my_config)) == NULL)) {
+        debug("cannot launch thread_func! %s\n", Gui_GetName(g_config->my_gui));
     }
     //    do_network(my_config, 0);
     return NULL;
