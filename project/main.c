@@ -61,9 +61,6 @@ int main(int argc, char** argv)
         }
         free_config(config_str);
     }
-  }
-
-  fprintf(stdout, "name argument = %s\n", *(argv + optind));
-  
-  exit(EXIT_SUCCESS);
+    fprintf(stdout, "name argument = %s\n", *(argv + optind));
+    exit(EXIT_SUCCESS);
 }

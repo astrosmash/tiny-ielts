@@ -38,13 +38,11 @@ static char* Gui_GetName(Gui* const);
 // Private methods
 // Setters
 static void _Gui_SetName(Gui*, char*);
-
-// Static methods
 // Callback for exit button that calls dtor, called with swapped params
-static void gui_exit(gpointer, GtkWidget*);
-static void run_thread(GtkWidget*, gpointer);
-static void* t_print_hello(void*);
-static void* print_hello(void*);
+static void Gui_Exit(gpointer, GtkWidget*);
+static void Gui_RunChildThread(GtkWidget*, gpointer);
+static void* _Gui_RunChildThread(void*);
+static void* thread_func(void*);
 
 // Definition
 #include "gui.c"
