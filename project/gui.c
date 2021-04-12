@@ -11,6 +11,7 @@ Gui* Gui_Construct(int argc, char** argv, config_t* config)
 
     gui_runtime_config* my_app_config = malloc(sizeof(gui_runtime_config));
     assert(my_app_config);
+    memset(my_app_config, 0, sizeof(*my_app_config));
 
     my_app_config->my_config = config;
     my_app_config->my_gui = g;
@@ -124,7 +125,8 @@ static void Gui_Exit(gpointer data, GtkWidget* widget)
 static void Gui_JoinThread(GtkWidget* widget, gpointer data)
 {
     gui_runtime_config* g_config = data;
-    debug("joining thread on %s\n", Gui_GetName(g_config->my_gui));
+    debug("joining thread at %s\n", Gui_GetName(g_config->my_gui));
+    assert(g_config->child_thread);
     void* res = NULL;
     if (Thread_Join(g_config->child_thread, &res) == 0) {
         debug("thread joined ok res %s\n", (char*) res);
@@ -133,7 +135,7 @@ static void Gui_JoinThread(GtkWidget* widget, gpointer data)
 
 static void* thread_func(void* data)
 {
-//    do_network(data, 0);
+    do_network(data, 0);
     return "thread_func launched ok";
 }
 
