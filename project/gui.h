@@ -24,8 +24,8 @@ typedef struct {
 } gui_runtime_config;
 
 // Gui ctor & dtor
-Gui* Gui_Construct(int, char**, config_t*);
-void Gui_Destruct(Gui* const);
+Gui* Gui_Construct(config_t*);
+void Gui_Destruct(Gui**);
 
 // Public methods
 // Setters

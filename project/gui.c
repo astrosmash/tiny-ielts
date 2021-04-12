@@ -1,10 +1,12 @@
 // Gui ctor & dtor
 #define Gui_Init (*Gui_Construct)
 
-Gui* Gui_Construct(int argc, char** argv, config_t* config)
+Gui* Gui_Construct(config_t* config)
 {
     Gui* g = malloc(sizeof(Gui));
     assert(g);
+    assert(config);
+    memset(g, 0, sizeof(*g));
 
     _Gui_SetName(g, "myggtk_gui");
     debug("allocated new object on %p\n", (void*)g);
@@ -19,8 +21,6 @@ Gui* Gui_Construct(int argc, char** argv, config_t* config)
     GtkWidget* window = NULL;
     GtkWidget* button = NULL;
     GtkWidget* grid = NULL;
-
-    gtk_init(&argc, &argv);
 
     window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     assert(window);
@@ -57,10 +57,12 @@ Gui* Gui_Construct(int argc, char** argv, config_t* config)
     return g;
 }
 
-void Gui_Destruct(Gui* const g)
+void Gui_Destruct(Gui** g)
 {
-    debug("freed object on %p\n", (void*)g);
-    free(g);
+    assert(*g);
+    debug("freed object on %p\n", (void*)*g);
+    free(*g);
+    *g = NULL;
 }
 
 // Public methods
@@ -68,11 +70,13 @@ void Gui_Destruct(Gui* const g)
 
 static void Gui_SetApp(Gui* const g, GtkApplication* app)
 {
+    assert(g);
     g->app = app;
 }
 
 static void Gui_SetUserData(Gui* const g, gpointer user_data)
 {
+    assert(g);
     g->user_data = user_data;
 }
 
@@ -80,16 +84,19 @@ static void Gui_SetUserData(Gui* const g, gpointer user_data)
 
 GtkApplication* Gui_GetApp(Gui* const g)
 {
+    assert(g);
     return g->app;
 }
 
 gpointer Gui_GetUserData(Gui* const g)
 {
+    assert(g);
     return g->user_data;
 }
 
 char* Gui_GetName(Gui* const g)
 {
+    assert(g);
     return g->name;
 }
 
@@ -97,6 +104,7 @@ char* Gui_GetName(Gui* const g)
 
 static void _Gui_SetName(Gui* g, char* name)
 {
+    assert(g);
     assert(name);
     strncpy(g->name, name, strlen(name));
 }
@@ -105,9 +113,11 @@ static void _Gui_SetName(Gui* g, char* name)
 
 static void Gui_Exit(gpointer data, GtkWidget* widget)
 {
+    assert(data);
     gui_runtime_config* g_config = data;
+    assert(g_config->my_gui);
     debug("freeing %s\n", Gui_GetName(g_config->my_gui));
-    Gui_Destruct(g_config->my_gui);
+    Gui_Destruct(&g_config->my_gui);
 }
 
 //static void Gui_RunChildThread(GtkWidget* widget, gpointer data)
@@ -124,9 +134,10 @@ static void Gui_Exit(gpointer data, GtkWidget* widget)
 
 static void Gui_JoinThread(GtkWidget* widget, gpointer data)
 {
+    assert(data);
     gui_runtime_config* g_config = data;
-    debug("joining thread at %s\n", Gui_GetName(g_config->my_gui));
     assert(g_config->child_thread);
+    debug("joining thread at %s\n", Gui_GetName(g_config->my_gui));
     void* res = NULL;
     if (Thread_Join(g_config->child_thread, &res) == 0) {
         debug("thread joined ok res %s\n", (char*) res);
@@ -135,13 +146,15 @@ static void Gui_JoinThread(GtkWidget* widget, gpointer data)
 
 static void* thread_func(void* data)
 {
-    do_network(data, 0);
+//    do_network(data, 0);
     return "thread_func launched ok";
 }
 
 static void* _Gui_RunChildThread(GtkWidget* widget, gpointer data)
 {
+    assert(data);
     gui_runtime_config* g_config = data;
+    assert(g_config->my_gui);
     Thread* my_thread = NULL;
 
     if (((my_thread = Thread_Init(&thread_func, g_config->my_config)) == NULL)) {

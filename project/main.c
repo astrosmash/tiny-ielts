@@ -52,8 +52,9 @@ int main(int argc, char** argv)
 
         if (gui) {
             fprintf(stdout, "gui set\n");
+            gtk_init(&argc, &argv);
             Gui* main_gui = NULL;
-            if (((main_gui = Gui_Init(0, NULL, config_str)) == NULL)) {
+            if (((main_gui = Gui_Init(config_str)) == NULL)) {
                 fprintf(stderr, "Cannot launch GUI\n");
             }
             fprintf(stdout, "gui launched\n");
