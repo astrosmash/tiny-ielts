@@ -3,6 +3,7 @@ CLANG-FORMAT ?= clang-format
 CPPCHECK ?= cppcheck
 SCAN-BUILD ?= scan-build
 GCC ?= gcc
+VALGRIND ?= valgrind
 
 THIS_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 PROJECT_SRC_DIR ?= $(THIS_DIR)project
@@ -10,8 +11,18 @@ PROJECT_SRC_DIR ?= $(THIS_DIR)project
 CLANG_FLAGS_COMMON += -D__NR_CPUS__=$(NPROC) -O2
 CLANG_INCLUDES_COMMON += -I. -I$(PROJECT_SRC_DIR)/libbpf/include
 
-CLANG_FLAGS_PROJECT += -L$(PROJECT_SRC_DIR) $(CLANG_FLAGS_COMMON) -Wall -Wextra -Wshadow -Wpedantic
-CLANG_INCLUDES_PROJECT += $(CLANG_INCLUDES_COMMON)
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S), Darwin)
+GTK = gtk+-3.0
+else
+GTK = gtk+-3.0-1
+endif
+
+GTK_CFLAGS := $(shell pkg-config --cflags $(GTK))
+GTK_INCLUDE := $(shell pkg-config --libs $(GTK))
+
+CLANG_FLAGS_PROJECT += -L$(PROJECT_SRC_DIR) $(CLANG_FLAGS_COMMON) $(GTK_CFLAGS) -Wall -Wextra -Wshadow -Wpedantic
+CLANG_INCLUDES_PROJECT += $(CLANG_INCLUDES_COMMON) $(GTK_INCLUDE)
 
 NPROC := $(shell nproc)
 PROJECT_FILES := $(shell ls $(PROJECT_SRC_DIR))
@@ -19,15 +30,21 @@ CURRENT_KERNEL := $(shell uname -r | sed "s/[-].*$\//")
 PROJECT_OBJECT := output_bin
 
 
-all: installation_doc sanitize format build_bin
+# all: installation_doc sanitize format build
+
+all: build
 
 installation_doc:
 	echo "hi $(CURRENT_KERNEL)\n";
 
 # Verify that compiler and tools are available
-.PHONY: verify_cmds $(CLANG) $(CPPCHECK) $(SCAN-BUILD) $(CLANG-FORMAT) $(GCC)
-
-verify_cmds: $(CLANG) $(CPPCHECK) $(SCAN-BUILD) $(CLANG-FORMAT) $(GCC)
+ifeq ($(UNAME_S), Darwin)
+.PHONY: verify_cmds $(CLANG) $(CPPCHECK) $(CLANG-FORMAT) $(GCC)
+verify_cmds: $(CLANG) $(CPPCHECK) $(CLANG-FORMAT) $(GCC)
+else
+.PHONY: verify_cmds $(CLANG) $(CPPCHECK) $(CLANG-FORMAT) $(GCC) $(SCAN-BUILD) $(VALGRIND)
+verify_cmds: $(CLANG) $(CPPCHECK) $(CLANG-FORMAT) $(GCC) $(SCAN-BUILD) $(VALGRIND)
+endif
 	@for TOOL in $^ ; do \
 		if ! (which -- "$${TOOL}" > /dev/null 2>&1); then \
 			echo "*** ERROR: Cannot find tool $${TOOL}" ;\
@@ -52,13 +69,19 @@ sanitize: verify_cmds
 
 format: verify_cmds
 	@for FILE in $(PROJECT_FILES) ; do \
-		if ! ($(CLANG-FORMAT) $(PROJECT_SRC_DIR)/"$${FILE}" > /tmp/"$${FILE}" && diff $(PROJECT_SRC_DIR)/"$${FILE}" /tmp/"$${FILE}"); then \
-			echo "*** ERROR: consider $(CLANG-FORMAT) -verbose project/"$${FILE}" > /tmp/"$${FILE}" && mv /tmp/"$${FILE}" project/"$${FILE}"" ;\
+		if ! ($(CLANG-FORMAT) -style='Webkit' $(PROJECT_SRC_DIR)/"$${FILE}" > /tmp/"$${FILE}" && diff $(PROJECT_SRC_DIR)/"$${FILE}" /tmp/"$${FILE}"); then \
+			echo "*** ERROR: consider $(CLANG-FORMAT) -verbose -style='Webkit' project/"$${FILE}" > /tmp/"$${FILE}" && mv /tmp/"$${FILE}" project/"$${FILE}"" ;\
 			exit 3; \
 		else true; fi; \
 	done
 
-build_bin: $(CLANG)
+mem_sanitize: verify_cmds
+	@if ! ($(VALGRIND) -v --track-origins=yes --leak-check=full --show-leak-kinds=all  $(THIS_DIR)$(PROJECT_OBJECT) -c $(THIS_DIR)config.conf -tw 222) ; then \
+                echo "*** ERROR: valgrind failed" ;\
+                exit 2; \
+        else true; fi
+
+build: $(CLANG)
 	$(CLANG) $(CLANG_FLAGS_PROJECT) $(CLANG_INCLUDES_PROJECT) $(PROJECT_SRC_DIR)/main.c -o $(PROJECT_OBJECT)
 
 clean:
