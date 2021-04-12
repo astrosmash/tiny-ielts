@@ -40,19 +40,16 @@ void Thread_Destruct(Thread** t)
 
 static void Thread_SetId(Thread* const t, pthread_t id)
 {
-    assert(t);
     t->id = id;
 }
 
 static void Thread_SetAttr(Thread* const t, pthread_attr_t attr)
 {
-    assert(t);
     t->attr = attr;
 }
 
 static void Thread_SetNum(Thread* const t, size_t num)
 {
-    assert(t);
     t->num = num;
 }
 
@@ -60,19 +57,16 @@ static void Thread_SetNum(Thread* const t, size_t num)
 
 pthread_t Thread_GetId(Thread* const t)
 {
-    assert(t);
     return t->id;
 }
 
 pthread_attr_t Thread_GetAttr(Thread* const t)
 {
-    assert(t);
     return t->attr;
 }
 
 size_t Thread_GetNum(Thread* const t)
 {
-    assert(t);
     return t->num;
 }
 
@@ -84,7 +78,6 @@ char* Thread_GetName(Thread* const t)
 
 ssize_t Thread_Join(Thread* const t, void* res)
 {
-    assert(t);
     debug("joining %s\n", Thread_GetName(t));
     return pthread_join(Thread_GetId(t), res);
 }
@@ -93,7 +86,6 @@ ssize_t Thread_Join(Thread* const t, void* res)
 
 static void _Thread_SetName(Thread* t, char* name)
 {
-    assert(t);
     assert(name);
     strncpy(t->name, name, strlen(name));
 }

@@ -70,13 +70,11 @@ void Gui_Destruct(Gui** g)
 
 static void Gui_SetApp(Gui* const g, GtkApplication* app)
 {
-    assert(g);
     g->app = app;
 }
 
 static void Gui_SetUserData(Gui* const g, gpointer user_data)
 {
-    assert(g);
     g->user_data = user_data;
 }
 
@@ -84,13 +82,11 @@ static void Gui_SetUserData(Gui* const g, gpointer user_data)
 
 GtkApplication* Gui_GetApp(Gui* const g)
 {
-    assert(g);
     return g->app;
 }
 
 gpointer Gui_GetUserData(Gui* const g)
 {
-    assert(g);
     return g->user_data;
 }
 
@@ -104,7 +100,6 @@ char* Gui_GetName(Gui* const g)
 
 static void _Gui_SetName(Gui* g, char* name)
 {
-    assert(g);
     assert(name);
     strncpy(g->name, name, strlen(name));
 }
@@ -115,7 +110,6 @@ static void Gui_Exit(gpointer data, GtkWidget* widget)
 {
     assert(data);
     gui_runtime_config* g_config = data;
-    assert(g_config->my_gui);
     debug("freeing %s\n", Gui_GetName(g_config->my_gui));
     Gui_Destruct(&g_config->my_gui);
 }
