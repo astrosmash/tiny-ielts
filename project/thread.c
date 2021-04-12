@@ -70,10 +70,10 @@ char* Thread_GetName(Thread* const t)
     return t->name;
 }
 
-ssize_t Thread_Join(Thread* const t)
+ssize_t Thread_Join(Thread* const t, void* res)
 {
     debug("joining %s\n", Thread_GetName(t));
-    return pthread_join(t->id, NULL);
+    return pthread_join(t->id, res);
 }
 
 // Private methods
