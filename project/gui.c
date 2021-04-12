@@ -18,42 +18,25 @@ Gui* Gui_Construct(config_t* config)
     my_app_config->my_config = config;
     my_app_config->my_gui = g;
 
-    GtkWidget* window = NULL;
-    GtkWidget* button = NULL;
-    GtkWidget* grid = NULL;
+    // Start initialization
+    GtkWidget *window = NULL;
 
+    // Main window
     window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     assert(window);
-
-    gtk_window_set_title(GTK_WINDOW(window), "tiny-ielts");
-    gtk_window_set_default_size(GTK_WINDOW(window), 360, 180);
+    gtk_window_set_default_size(GTK_WINDOW(window), 400, 400);
+    gtk_window_set_title(GTK_WINDOW(window), "2ch-mod");
+    gtk_container_set_border_width(GTK_CONTAINER(window), 10);
     g_signal_connect_swapped(window, "delete_event", G_CALLBACK(Gui_Exit), my_app_config);
 
-    grid = gtk_grid_new();
-    assert(grid);
-    gtk_container_add(GTK_CONTAINER(window), grid);
-
-    button = gtk_button_new_with_label("Start");
-    assert(button);
-    g_signal_connect(button, "clicked", G_CALLBACK(_Gui_RunChildThread), my_app_config);
-    gtk_grid_attach(GTK_GRID(grid), button, 0, 0, 1, 1);
-
-    button = gtk_button_new_with_label("Stop");
-    assert(button);
-    g_signal_connect(button, "clicked", G_CALLBACK(_Gui_RunChildThread), my_app_config);
-    gtk_grid_attach(GTK_GRID(grid), button, 1, 0, 1, 1);
-
-    button = gtk_button_new_with_label("Quit");
-    assert(button);
-    g_signal_connect_swapped(button, "clicked", G_CALLBACK(Gui_Exit), my_app_config);
-    gtk_grid_attach(GTK_GRID(grid), button, 0, 1, 2, 1);
-
-    button = gtk_button_new_with_label("Join thread");
-    assert(button);
-    g_signal_connect(button, "clicked", G_CALLBACK(Gui_JoinThread), my_app_config);
-    gtk_grid_attach(GTK_GRID(grid), button, 2, 2, 2, 2);
+    if (check_local_account() == 0) {
+        _Gui_DrawMainScreen(window, my_app_config);
+    } else {
+        _Gui_DrawLoginScreen(window, my_app_config);
+    }
 
     gtk_widget_show_all(window);
+
     return g;
 }
 
@@ -134,14 +117,15 @@ static void Gui_JoinThread(GtkWidget* widget, gpointer data)
     assert(g_config->child_thread);
     debug("joining thread at %s\n", Gui_GetName(g_config->my_gui));
     void* res = NULL;
+
     if (Thread_Join(g_config->child_thread, &res) == 0) {
-        debug("thread joined ok res %s\n", (char*) res);
+        debug("thread joined ok res %s\n", (char*)res);
     }
 }
 
 static void* thread_func(void* data)
 {
-//    do_network(data, 0);
+    //    do_network(data, 0);
     return "thread_func launched ok";
 }
 
@@ -158,4 +142,115 @@ static void* _Gui_RunChildThread(GtkWidget* widget, gpointer data)
     g_config->child_thread = my_thread;
     //    do_network(my_config, 0);
     return NULL;
+}
+
+static void _Gui_GetText(GtkEntry* entry, gpointer data)
+{
+    assert(entry);
+
+    const char* text = NULL;
+    text = gtk_entry_get_text(entry);
+    assert(text);
+
+    if (strlen(text)) {
+        debug("read %s\n", text);
+        g_print("%s \n", text);
+    }
+
+    // Does a file exist?
+    if (check_local_file(text) == 0) {
+        // Try to read it
+        char* file = NULL;
+        if ((file = read_file(text)) == NULL) {
+            debug("was not able to read %s\n", text);
+            return;
+        }
+        debug("was able to read %s %s\n", text, file);
+        free(file);
+    }
+}
+
+static void _Gui_DrawMainScreen(GtkWidget* window, gui_runtime_config* my_app_config)
+{
+    assert(window);
+    GtkWidget *box = NULL, *entry = NULL, *grid = NULL, *button = NULL, *scroll = NULL;
+
+    // Main widget
+    box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+    assert(box);
+    gtk_container_set_border_width(GTK_CONTAINER(box), 7);
+    gtk_container_add(GTK_CONTAINER(window), box);
+
+    // Text input
+    entry = gtk_entry_new();
+    assert(entry);
+    gtk_container_add(GTK_CONTAINER(box), entry);
+    g_signal_connect(GTK_ENTRY(entry), "activate", G_CALLBACK(_Gui_GetText), NULL);
+
+    scroll = gtk_scrolled_window_new(NULL, NULL);
+    assert(scroll);
+    g_object_set(scroll, "shadow-type", GTK_SHADOW_IN, NULL);
+    gtk_container_set_border_width(GTK_CONTAINER(scroll), 17);
+    gtk_container_add(GTK_CONTAINER(box), scroll);
+
+    grid = gtk_grid_new();
+    assert(grid);
+    gtk_container_add(GTK_CONTAINER(box), grid);
+
+    button = gtk_button_new_with_label("Start");
+    assert(button);
+    g_signal_connect(button, "clicked", G_CALLBACK(_Gui_RunChildThread), my_app_config);
+    gtk_grid_attach(GTK_GRID(grid), button, 0, 0, 1, 1);
+
+    button = gtk_button_new_with_label("Stop");
+    assert(button);
+    g_signal_connect(button, "clicked", G_CALLBACK(_Gui_RunChildThread), my_app_config);
+    gtk_grid_attach(GTK_GRID(grid), button, 1, 0, 1, 1);
+
+    button = gtk_button_new_with_label("Quit");
+    assert(button);
+    g_signal_connect_swapped(button, "clicked", G_CALLBACK(Gui_Exit), my_app_config);
+    gtk_grid_attach(GTK_GRID(grid), button, 0, 1, 2, 1);
+
+    button = gtk_button_new_with_label("Join thread");
+    assert(button);
+    g_signal_connect(button, "clicked", G_CALLBACK(Gui_JoinThread), my_app_config);
+    gtk_grid_attach(GTK_GRID(grid), button, 2, 2, 2, 2);
+}
+
+static void _Gui_DrawLoginScreen(GtkWidget* window, gui_runtime_config* my_app_config)
+{
+    assert(window);
+    GtkWidget *box = NULL, *entry = NULL, *grid = NULL, *button = NULL, *scroll = NULL;
+
+    // Main widget
+    box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+    assert(box);
+    gtk_container_set_border_width(GTK_CONTAINER(box), 7);
+    gtk_container_add(GTK_CONTAINER(window), box);
+
+    // Text input
+    entry = gtk_entry_new();
+    assert(entry);
+    gtk_container_add(GTK_CONTAINER(box), entry);
+    g_signal_connect(GTK_ENTRY(entry), "activate", G_CALLBACK(_Gui_GetText), NULL);
+
+    grid = gtk_grid_new();
+    assert(grid);
+    gtk_container_add(GTK_CONTAINER(box), grid);
+
+    button = gtk_button_new_with_label("Start");
+    assert(button);
+    g_signal_connect(button, "clicked", G_CALLBACK(_Gui_RunChildThread), my_app_config);
+    gtk_grid_attach(GTK_GRID(grid), button, 0, 0, 1, 1);
+
+    button = gtk_button_new_with_label("Stop");
+    assert(button);
+    g_signal_connect(button, "clicked", G_CALLBACK(_Gui_RunChildThread), my_app_config);
+    gtk_grid_attach(GTK_GRID(grid), button, 1, 0, 1, 1);
+
+    button = gtk_button_new_with_label("Quit");
+    assert(button);
+    g_signal_connect_swapped(button, "clicked", G_CALLBACK(Gui_Exit), my_app_config);
+    gtk_grid_attach(GTK_GRID(grid), button, 0, 1, 2, 1);
 }
