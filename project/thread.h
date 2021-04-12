@@ -22,6 +22,7 @@ pthread_t Thread_GetId(Thread* const);
 pthread_attr_t Thread_GetAttr(Thread* const);
 size_t Thread_GetNum(Thread* const);
 static char* Thread_GetName(Thread* const);
+ssize_t Thread_Join(Thread* const);
 
 // Private methods
 // Setters
