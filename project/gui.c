@@ -112,6 +112,7 @@ static void Gui_Exit(gpointer data, GtkWidget* widget)
     gui_runtime_config* g_config = data;
     debug("freeing %s\n", Gui_GetName(g_config->my_gui));
     Gui_Destruct(&g_config->my_gui);
+    gtk_main_quit();
 }
 
 //static void Gui_RunChildThread(GtkWidget* widget, gpointer data)
