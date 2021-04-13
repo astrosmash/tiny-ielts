@@ -16,6 +16,7 @@
 #include <sys/stat.h>
 
 #include <cairo.h>
+#include <curl/curl.h>
 #include <gtk/gtk.h>
 
 #ifdef __linux__

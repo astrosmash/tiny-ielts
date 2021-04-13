@@ -21,7 +21,7 @@ endif
 GTK_CFLAGS := $(shell pkg-config --cflags $(GTK))
 GTK_INCLUDE := $(shell pkg-config --libs $(GTK))
 
-CLANG_FLAGS_PROJECT += -L$(PROJECT_SRC_DIR) $(CLANG_FLAGS_COMMON) $(GTK_CFLAGS) -Wall -Wextra -Wshadow -Wpedantic
+CLANG_FLAGS_PROJECT += -L$(PROJECT_SRC_DIR) $(CLANG_FLAGS_COMMON) $(GTK_CFLAGS) -lcurl -Wall -Wextra -Wshadow -Wpedantic
 CLANG_INCLUDES_PROJECT += $(CLANG_INCLUDES_COMMON) $(GTK_INCLUDE)
 
 NPROC := $(shell nproc)

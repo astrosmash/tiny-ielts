@@ -155,47 +155,47 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
     assert(text);
     size_t text_len = strlen(text);
 
-    static session_creds_t creds = {0};
-
-    if (text_type == FilePath) {
-        if (text_len) {
+    if (text_len) {
+        static session_creds_t creds = {0};
+        if (text_type == FilePath) {
             debug("read %s\n", text);
             g_print("%s \n", text);
-        }
 
-        // Does a file exist?
-        if (check_local_file(text) == 0) {
-            // Try to read it
-            char* file = NULL;
-            if ((file = read_file(text)) == NULL) {
-                debug("was not able to read %s\n", text);
-                return;
+            // Does a file exist?
+            if (check_local_file(text) == 0) {
+                // Try to read it
+                char* file = NULL;
+                if ((file = read_file(text)) == NULL) {
+                    debug("was not able to read %s\n", text);
+                    return;
+                }
+                debug("was able to read %s %s\n", text, file);
+                free(file);
             }
-            debug("was able to read %s %s\n", text, file);
-            free(file);
-        }
-    } else if (text_type == Username) {
-        if (text_len) {
+        } else if (text_type == Username) {
             // Make sure no overflow occurs
             assert(text_len < MAX_CRED_LENGTH);
             debug("read username %s\n", text);
             g_print("%s \n", text);
             strncpy(creds.username, text, text_len);
-        }
-    } else if (text_type == Password) {
-        if (text_len) {
+        } else if (text_type == Password) {
             // Make sure no overflow occurs
             assert(text_len < MAX_CRED_LENGTH);
             debug("read password %s\n", text);
             g_print("%s \n", text);
             strncpy(creds.password, text, text_len);
+        } else {
+            debug("text_type unknown %zu, doing nothing\n", text_type);
         }
-    } else {
-        debug("text_type unknown %zu, doing nothing\n", text_type);
-    }
 
-    if (strlen(creds.username) && strlen(creds.password)) {
-        debug("triggering session_init with user %s pass %s\n", creds.username, creds.password);
+        if (strlen(creds.username) && strlen(creds.password)) {
+            debug("triggering session_init with user %s pass %s\n", creds.username, creds.password);
+
+            ssize_t session_res = 0;
+            if ((session_res = session_init(&creds))) {
+                 debug("was not able to trigger session_init with user %s pass %s (%zd)\n", creds.username, creds.password, session_res);
+            }
+        }
     }
 }
 
