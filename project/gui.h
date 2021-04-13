@@ -53,5 +53,11 @@ static void _Gui_WantAuthenticate(GtkWidget*, gpointer);
 
 static void* thread_func(void*);
 
+enum {
+    Username = 1,
+    Password,
+    FilePath
+} _Gui_GetText_Type;
+
 // Definition
 #include "gui.c"

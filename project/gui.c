@@ -147,26 +147,42 @@ static void* _Gui_RunChildThread(GtkWidget* widget, gpointer data)
 static void _Gui_GetText(GtkEntry* entry, gpointer data)
 {
     assert(entry);
+    assert(data);
+    size_t text_type = *(size_t *) data;
 
     const char* text = NULL;
     text = gtk_entry_get_text(entry);
     assert(text);
 
-    if (strlen(text)) {
-        debug("read %s\n", text);
-        g_print("%s \n", text);
-    }
-
-    // Does a file exist?
-    if (check_local_file(text) == 0) {
-        // Try to read it
-        char* file = NULL;
-        if ((file = read_file(text)) == NULL) {
-            debug("was not able to read %s\n", text);
-            return;
+    if (text_type == FilePath) {
+        if (strlen(text)) {
+            debug("read %s\n", text);
+            g_print("%s \n", text);
         }
-        debug("was able to read %s %s\n", text, file);
-        free(file);
+
+        // Does a file exist?
+        if (check_local_file(text) == 0) {
+            // Try to read it
+            char* file = NULL;
+            if ((file = read_file(text)) == NULL) {
+                debug("was not able to read %s\n", text);
+                return;
+            }
+            debug("was able to read %s %s\n", text, file);
+            free(file);
+        }
+    } else if (text_type == Username) {
+        if (strlen(text)) {
+            debug("read username %s\n", text);
+            g_print("%s \n", text);
+        }
+    } else if (text_type == Password) {
+        if (strlen(text)) {
+            debug("read password %s\n", text);
+            g_print("%s \n", text);
+        }
+    } else {
+        debug("text_type unknown %zu, doing nothing\n", text_type);
     }
 }
 
@@ -185,7 +201,9 @@ static void _Gui_DrawMainScreen(GtkWidget* window, gui_runtime_config* my_app_co
     entry = gtk_entry_new();
     assert(entry);
     gtk_container_add(GTK_CONTAINER(box), entry);
-    g_signal_connect(GTK_ENTRY(entry), "activate", G_CALLBACK(_Gui_GetText), NULL);
+
+    static size_t mode = FilePath;
+    g_signal_connect(GTK_ENTRY(entry), "activate", G_CALLBACK(_Gui_GetText), &mode);
 
     scroll = gtk_scrolled_window_new(NULL, NULL);
     assert(scroll);
@@ -271,7 +289,7 @@ static void _Gui_DrawLoginInvitationScreen(GtkWidget* window, gui_runtime_config
     assert(grid);
     gtk_container_add(GTK_CONTAINER(box), grid);
 
-    label = gtk_label_new("No local account found. Do you want to authenticate?\n");
+    label = gtk_label_new("No local account found. Do you want to authenticate?");
     assert(label);
     gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_CENTER);
     gtk_label_set_line_wrap(GTK_LABEL(label), FALSE);
@@ -292,21 +310,42 @@ static void _Gui_DrawLoginInvitationScreen(GtkWidget* window, gui_runtime_config
 static void _Gui_WantAuthenticate(GtkWidget* widget, gpointer data)
 {
     assert(data);
-    GtkWidget* box = data, *entry = NULL;
+    GtkWidget* box = data, *grid = NULL, *label = NULL, *entry = NULL;
 
     // For the program lifetime - we do not want to add form on each click
     static size_t pressed = 0;
 
     if (!pressed) {
-        // Username
-        entry = gtk_entry_new();
-        assert(entry);
-        gtk_container_add(GTK_CONTAINER(box), entry);
+        // Grid
+        grid = gtk_grid_new();
+        assert(grid);
+        gtk_container_add(GTK_CONTAINER(box), grid);
 
-        // Password
+        label = gtk_label_new("Username");
+        assert(label);
+        gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_CENTER);
+        gtk_label_set_line_wrap(GTK_LABEL(label), FALSE);
+        gtk_grid_attach(GTK_GRID(grid), label, 0, 3, 1, 1);
+
         entry = gtk_entry_new();
         assert(entry);
-        gtk_container_add(GTK_CONTAINER(box), entry);
+        gtk_grid_attach(GTK_GRID(grid), entry, 0, 4, 1, 1);
+
+        static size_t usermode = Username;
+        g_signal_connect(GTK_ENTRY(entry), "activate", G_CALLBACK(_Gui_GetText), &usermode);
+
+        label = gtk_label_new("Password");
+        assert(label);
+        gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_CENTER);
+        gtk_label_set_line_wrap(GTK_LABEL(label), FALSE);
+        gtk_grid_attach(GTK_GRID(grid), label, 0, 5, 1, 1);
+
+        entry = gtk_entry_new();
+        assert(entry);
+        gtk_grid_attach(GTK_GRID(grid), entry, 0, 6, 1, 1);
+
+        static size_t passmode = Password;
+        g_signal_connect(GTK_ENTRY(entry), "activate", G_CALLBACK(_Gui_GetText), &passmode);
 
         pressed = 1;
 
