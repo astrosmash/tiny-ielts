@@ -32,7 +32,7 @@ Gui* Gui_Construct(config_t* config)
     if (check_local_account() == 0) {
         _Gui_DrawMainScreen(window, my_app_config);
     } else {
-        _Gui_DrawLoginScreen(window, my_app_config);
+        _Gui_DrawLoginInvitationScreen(window, my_app_config);
     }
 
     gtk_widget_show_all(window);
@@ -253,4 +253,65 @@ static void _Gui_DrawLoginScreen(GtkWidget* window, gui_runtime_config* my_app_c
     assert(button);
     g_signal_connect_swapped(button, "clicked", G_CALLBACK(Gui_Exit), my_app_config);
     gtk_grid_attach(GTK_GRID(grid), button, 0, 1, 2, 1);
+}
+
+static void _Gui_DrawLoginInvitationScreen(GtkWidget* window, gui_runtime_config* my_app_config)
+{
+    assert(window);
+    GtkWidget *box = NULL, *grid = NULL, *button = NULL, *label = NULL;
+
+    // Main widget
+    box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 1);
+    assert(box);
+    gtk_container_set_border_width(GTK_CONTAINER(box), 2);
+    gtk_container_add(GTK_CONTAINER(window), box);
+
+    // Grid
+    grid = gtk_grid_new();
+    assert(grid);
+    gtk_container_add(GTK_CONTAINER(box), grid);
+
+    label = gtk_label_new("No local account found. Do you want to authenticate?\n");
+    assert(label);
+    gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_CENTER);
+    gtk_label_set_line_wrap(GTK_LABEL(label), FALSE);
+    gtk_grid_attach(GTK_GRID(grid), label, 0, 0, 1, 1);
+
+    button = gtk_button_new_with_label("Yes");
+    assert(button);
+    g_signal_connect(button, "clicked", G_CALLBACK(_Gui_WantAuthenticate), box);
+    gtk_grid_attach(GTK_GRID(grid), button, 0, 1, 1, 1);
+
+    button = gtk_button_new_with_label("Quit");
+    assert(button);
+    g_signal_connect_swapped(button, "clicked", G_CALLBACK(Gui_Exit), my_app_config);
+    gtk_grid_attach(GTK_GRID(grid), button, 0, 2, 1, 1);
+}
+
+
+static void _Gui_WantAuthenticate(GtkWidget* widget, gpointer data)
+{
+    assert(data);
+    GtkWidget* box = data, *entry = NULL;
+
+    // For the program lifetime - we do not want to add form on each click
+    static size_t pressed = 0;
+
+    if (!pressed) {
+        // Username
+        entry = gtk_entry_new();
+        assert(entry);
+        gtk_container_add(GTK_CONTAINER(box), entry);
+
+        // Password
+        entry = gtk_entry_new();
+        assert(entry);
+        gtk_container_add(GTK_CONTAINER(box), entry);
+
+        pressed = 1;
+
+        // redraw
+        gtk_widget_show_all(box);
+    }
+
 }

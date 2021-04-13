@@ -47,7 +47,9 @@ static void* _Gui_RunChildThread(GtkWidget*, gpointer);
 static void _Gui_GetText(GtkEntry*, gpointer);
 
 static void _Gui_DrawLoginScreen(GtkWidget*, gui_runtime_config*);
+static void _Gui_DrawLoginInvitationScreen(GtkWidget*, gui_runtime_config*);
 static void _Gui_DrawMainScreen(GtkWidget*, gui_runtime_config*);
+static void _Gui_WantAuthenticate(GtkWidget*, gpointer);
 
 static void* thread_func(void*);
 
