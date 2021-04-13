@@ -66,7 +66,6 @@ extern size_t check_local_file(const char* path)
 
     if ((stat_res = stat(check_path, &stat_buf))) {
         debug("%d\n", errno);
-        return stat_res;
     }
 
     return stat_res;
