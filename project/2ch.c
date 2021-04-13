@@ -70,3 +70,21 @@ extern size_t check_local_file(const char* path)
 
     return stat_res;
 }
+
+
+//extern size_t session_init(void)
+//{
+//
+//
+//    assert(check_path);
+//    debug("checking path %s\n", check_path);
+//
+//    size_t stat_res = 0;
+//    struct stat stat_buf = {0};
+//
+//    if ((stat_res = stat(check_path, &stat_buf))) {
+//        debug("%d\n", errno);
+//    }
+//
+//    return stat_res;
+//}

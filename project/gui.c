@@ -153,9 +153,12 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
     const char* text = NULL;
     text = gtk_entry_get_text(entry);
     assert(text);
+    size_t text_len = strlen(text);
+
+    static session_creds_t creds = {0};
 
     if (text_type == FilePath) {
-        if (strlen(text)) {
+        if (text_len) {
             debug("read %s\n", text);
             g_print("%s \n", text);
         }
@@ -172,17 +175,27 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
             free(file);
         }
     } else if (text_type == Username) {
-        if (strlen(text)) {
+        if (text_len) {
+            // Make sure no overflow occurs
+            assert(text_len < MAX_CRED_LENGTH);
             debug("read username %s\n", text);
             g_print("%s \n", text);
+            strncpy(creds.username, text, text_len);
         }
     } else if (text_type == Password) {
-        if (strlen(text)) {
+        if (text_len) {
+            // Make sure no overflow occurs
+            assert(text_len < MAX_CRED_LENGTH);
             debug("read password %s\n", text);
             g_print("%s \n", text);
+            strncpy(creds.password, text, text_len);
         }
     } else {
         debug("text_type unknown %zu, doing nothing\n", text_type);
+    }
+
+    if (strlen(creds.username) && strlen(creds.password)) {
+        debug("triggering session_init with user %s pass %s\n", creds.username, creds.password);
     }
 }
 
