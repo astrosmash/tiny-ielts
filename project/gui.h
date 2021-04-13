@@ -24,8 +24,8 @@ typedef struct {
 } gui_runtime_config;
 
 // Gui ctor & dtor
-Gui* Gui_Construct(int, char**, config_t*);
-void Gui_Destruct(Gui* const);
+Gui* Gui_Construct(config_t*);
+void Gui_Destruct(Gui**);
 
 // Public methods
 // Setters
@@ -44,7 +44,20 @@ static void Gui_Exit(gpointer, GtkWidget*);
 //static void Gui_RunChildThread(GtkWidget*, gpointer);
 static void Gui_JoinThread(GtkWidget*, gpointer);
 static void* _Gui_RunChildThread(GtkWidget*, gpointer);
+static void _Gui_GetText(GtkEntry*, gpointer);
+
+static void _Gui_DrawLoginScreen(GtkWidget*, gui_runtime_config*);
+static void _Gui_DrawLoginInvitationScreen(GtkWidget*, gui_runtime_config*);
+static void _Gui_DrawMainScreen(GtkWidget*, gui_runtime_config*);
+static void _Gui_WantAuthenticate(GtkWidget*, gpointer);
+
 static void* thread_func(void*);
+
+enum {
+    Username = 1,
+    Password,
+    FilePath
+} _Gui_GetText_Type;
 
 // Definition
 #include "gui.c"

@@ -10,7 +10,7 @@ typedef struct {
 
 // Thread ctor & dtor
 Thread* Thread_Construct(void* (*)(void*), void*);
-void Thread_Destruct(Thread* const);
+void Thread_Destruct(Thread**);
 
 // Public methods
 // Setters

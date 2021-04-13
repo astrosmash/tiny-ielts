@@ -6,6 +6,9 @@ Thread* Thread_Construct(void* (*func_addr)(void*), void* func_arg)
     // Arguments passed to pthread_create
     Thread* t = malloc(sizeof(Thread));
     assert(t);
+    assert(func_addr);
+    assert(func_arg);
+    memset(t, 0, sizeof(*t));
 
     _Thread_SetName(t, "myggtk_thread");
     Thread_SetNum(t, 77);
@@ -24,10 +27,12 @@ Thread* Thread_Construct(void* (*func_addr)(void*), void* func_arg)
     return t;
 }
 
-void Thread_Destruct(Thread* const t)
+void Thread_Destruct(Thread** t)
 {
-    debug("freed object on %p\n", (void*)t);
-    free(t);
+    assert(*t);
+    debug("freed object on %p\n", (void*)*t);
+    free(*t);
+    *t = NULL;
 }
 
 // Public methods
@@ -67,13 +72,14 @@ size_t Thread_GetNum(Thread* const t)
 
 char* Thread_GetName(Thread* const t)
 {
+    assert(t);
     return t->name;
 }
 
 ssize_t Thread_Join(Thread* const t, void* res)
 {
     debug("joining %s\n", Thread_GetName(t));
-    return pthread_join(t->id, res);
+    return pthread_join(Thread_GetId(t), res);
 }
 
 // Private methods
