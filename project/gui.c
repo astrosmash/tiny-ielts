@@ -1,3 +1,7 @@
+// Global vars
+gui_runtime_config* my_app_config = NULL;
+static session_t session = { 0 };
+
 
 // Gui ctor & dtor
 #define Gui_Init (*Gui_Construct)
@@ -12,12 +16,9 @@ Gui* Gui_Construct(config_t* config)
     _Gui_SetName(g, "myggtk_gui");
     debug("allocated new object on %p\n", (void*)g);
 
-    gui_runtime_config* my_app_config = malloc(sizeof(gui_runtime_config));
+    my_app_config = malloc(sizeof(gui_runtime_config));
     assert(my_app_config);
     memset(my_app_config, 0, sizeof(*my_app_config));
-
-    my_app_config->my_config = config;
-    my_app_config->my_gui = g;
 
     // Start initialization
     GtkWidget* window = NULL;
@@ -30,10 +31,14 @@ Gui* Gui_Construct(config_t* config)
     gtk_container_set_border_width(GTK_CONTAINER(window), 10);
     g_signal_connect_swapped(window, "delete_event", G_CALLBACK(Gui_Exit), my_app_config);
 
+    my_app_config->my_config = config;
+    my_app_config->my_gui = g;
+    my_app_config->window = window;
+
     if (check_local_account() == 0) {
-        _Gui_DrawMainScreen(window, my_app_config);
+        _Gui_DrawMainScreen();
     } else {
-        _Gui_DrawLoginInvitationScreen(window, my_app_config);
+        _Gui_DrawLoginInvitationScreen();
     }
 
     gtk_widget_show_all(window);
@@ -145,8 +150,6 @@ static void* _Gui_RunChildThread(GtkWidget* widget, gpointer data)
     return NULL;
 }
 
-static session_t session = { 0 };
-
 static void _Gui_GetText(GtkEntry* entry, gpointer data)
 {
     assert(entry);
@@ -216,16 +219,16 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
     }
 }
 
-static void _Gui_DrawMainScreen(GtkWidget* window, gui_runtime_config* my_app_config)
+static void _Gui_DrawMainScreen()
 {
-    assert(window);
+    assert(my_app_config->window);
     GtkWidget *box = NULL, *entry = NULL, *grid = NULL, *button = NULL, *scroll = NULL;
 
     // Main widget
     box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
     assert(box);
     gtk_container_set_border_width(GTK_CONTAINER(box), 7);
-    gtk_container_add(GTK_CONTAINER(window), box);
+    gtk_container_add(GTK_CONTAINER(my_app_config->window), box);
 
     // Text input
     entry = gtk_entry_new();
@@ -266,16 +269,16 @@ static void _Gui_DrawMainScreen(GtkWidget* window, gui_runtime_config* my_app_co
     gtk_grid_attach(GTK_GRID(grid), button, 2, 2, 2, 2);
 }
 
-static void _Gui_DrawLoginInvitationScreen(GtkWidget* window, gui_runtime_config* my_app_config)
+static void _Gui_DrawLoginInvitationScreen()
 {
-    assert(window);
+    assert(my_app_config->window);
     GtkWidget *box = NULL, *grid = NULL, *button = NULL, *label = NULL;
 
     // Main widget
     box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 1);
     assert(box);
     gtk_container_set_border_width(GTK_CONTAINER(box), 2);
-    gtk_container_add(GTK_CONTAINER(window), box);
+    gtk_container_add(GTK_CONTAINER(my_app_config->window), box);
 
     // Grid
     grid = gtk_grid_new();
