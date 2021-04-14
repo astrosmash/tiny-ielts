@@ -17,6 +17,7 @@
 
 #include <cairo.h>
 #include <curl/curl.h>
+#include <cjson/cJSON.h>
 #include <gtk/gtk.h>
 
 #ifdef __linux__

@@ -40,11 +40,11 @@ typedef struct {
 
         char telegram_username[MAX_ARBITRARY_CHAR_LENGTH];
 
-        char jids[MAX_CRED_LENGTH][MAX_NUM_OF_JIDS];
+        char jids[MAX_NUM_OF_JIDS][MAX_CRED_LENGTH];
 
         char comment[MAX_ARBITRARY_CHAR_LENGTH];
 
-        char boards[MAX_BOARD_NAME_LENGTH][MAX_NUM_OF_BOARDS];
+        char boards[MAX_NUM_OF_BOARDS][MAX_BOARD_NAME_LENGTH];
 
         enum {
             true = 1, false

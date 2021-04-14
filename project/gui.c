@@ -177,12 +177,22 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
             assert(text_len < MAX_CRED_LENGTH);
             debug("read username %s\n", text);
             g_print("%s \n", text);
+
+            if (strlen(creds.username)) {
+                memset(creds.username, 0, MAX_CRED_LENGTH);
+            }
+
             strncpy(creds.username, text, text_len);
         } else if (text_type == Password) {
             // Make sure no overflow occurs
             assert(text_len < MAX_CRED_LENGTH);
             debug("read password %s\n", text);
             g_print("%s \n", text);
+
+            if (strlen(creds.password)) {
+                memset(creds.password, 0, MAX_CRED_LENGTH);
+            }
+
             strncpy(creds.password, text, text_len);
         } else {
             debug("text_type unknown %zu, doing nothing\n", text_type);
