@@ -1,3 +1,4 @@
+
 // Global vars
 gui_runtime_config* my_app_config = NULL;
 static session_t session = { 0 };
@@ -241,6 +242,62 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
                     debug("was not able to trigger session_init with user %s pass %s (%zd)\n", creds.username, creds.password, session_res);
                     return;
                 }
+
+
+                const char* homedir = NULL;
+
+                if ((homedir = getenv("HOME")) == NULL) {
+                    homedir = getpwuid(getuid())->pw_dir;
+                }
+
+                assert(homedir);
+                debug("homedir is %s\n", homedir);
+
+                const char* dvach_account_file = "/.mod2ch/.creds";
+
+                size_t fullpathsize = strlen(homedir) + strlen(dvach_account_file) + 2;
+                char* fullpath = malloc(fullpathsize);
+                assert(fullpath);
+
+                memset(fullpath, 0, fullpathsize);
+
+                strncpy(fullpath, homedir, strlen(homedir));
+
+                strncat(fullpath, dvach_account_file, strlen(dvach_account_file));
+                debug("writing credentials to %s\n", fullpath);
+
+                const char* mode = "w";
+                FILE* file = NULL;
+
+                if ((file = fopen(fullpath, mode)) == NULL) {
+                    debug("fopen(%s) cannot open file\n", fullpath);
+                    return;
+                }
+
+                char* content = malloc(MAX_ARBITRARY_CHAR_LENGTH);
+                assert(content);
+                memset(content, 0, MAX_ARBITRARY_CHAR_LENGTH);
+
+                snprintf(content, MAX_ARBITRARY_CHAR_LENGTH - 2, "cookie = %s\nusername = %s\npassword = %s\n", session.cookie, session.creds->username, session.creds->password);
+
+                for (size_t i = 0; i <= MAX_NUM_OF_BOARDS; ++i) {
+                    if (strlen(session.moder.boards[i])) {
+                        char* add = NULL;
+                        add = malloc(15 + MAX_BOARD_NAME_LENGTH);
+                        assert(add);
+                        snprintf(add, 14 + MAX_BOARD_NAME_LENGTH, "board = %s\n", session.moder.boards[i]);
+                        strncat(content, add, strlen(add));
+                    }
+                }
+
+                size_t ret = fwrite(content, sizeof (char), strlen(content), file);
+                if (!ret) {
+                    debug("fwrite(%s) cannot write to file\n", fullpath);
+                    return;
+                }
+
+                free(content);
+                fclose(file);
 
                 _Gui_DrawMainScreen();
                 gtk_widget_show_all(my_app_config->window);

@@ -1,6 +1,8 @@
 extern size_t check_local_account(void)
 {
     size_t res = 0;
+    size_t credentials_present = 0;
+
     const char* homedir = NULL;
 
     if ((homedir = getenv("HOME")) == NULL) {
@@ -21,37 +23,43 @@ extern size_t check_local_account(void)
 
     strncpy(fullpath, homedir, strlen(homedir));
 
-    struct stat stat_buf = { 0 };
+    struct stat stat_buf = {0};
 
     strncat(fullpath, dvach_subdir, strlen(dvach_subdir));
     debug("local folder with credentials is %s\n", fullpath);
 
     if ((res = stat(fullpath, &stat_buf))) {
-        debug("cannot access local folder with credentials %s (%d)\n", fullpath, errno);
-        return res;
-    }
+        debug("cannot access local folder with credentials %s (%s)\n", fullpath, strerror(errno));
 
-    if ((stat_buf.st_mode & S_IFMT) != S_IFDIR) {
-        res = -1;
-        debug("%s is not a directory\n", fullpath);
-        return res;
+        credentials_present = -1;
+
+        if ((stat_buf.st_mode & S_IFMT) != S_IFDIR) {
+            debug("%s is not a directory, will try to create...\n", fullpath);
+        }
+        if ((res = mkdir(fullpath, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH))) {
+            debug("cannot create local folder with credentials %s (%s)\n", fullpath, strerror(errno));
+            return res;
+        }
     }
 
     strncat(fullpath, dvach_account_file, strlen(dvach_account_file));
     debug("local file with credentials is %s\n", fullpath);
 
     if ((res = stat(fullpath, &stat_buf))) {
-        debug("cannot access local file with credentials %s (%d)\n", fullpath, errno);
-        return res;
+        debug("cannot access local file with credentials %s (%s)\n", fullpath, strerror(errno));
+
+        credentials_present = -1;
+
+        if ((stat_buf.st_mode & S_IFMT) != S_IFREG) {
+            debug("%s is not a file, will try to create...\n", fullpath);
+        }
+        if ((res = open(fullpath, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR)) == -1) {
+            debug("cannot create local file with credentials %s (%s)\n", fullpath, strerror(errno));
+            return res;
+        }
     }
 
-    if ((stat_buf.st_mode & S_IFMT) != S_IFREG) {
-        res = -1;
-        debug("%s is not a file\n", fullpath);
-        return res;
-    }
-
-    return res;
+    return credentials_present;
 }
 
 extern size_t check_local_file(const char* path)
@@ -90,6 +98,7 @@ static size_t curl_write_func(void* ptr, size_t size, size_t nmemb, struct curl_
 
 extern ssize_t session_init(session_creds_t* creds, session_t* session)
 {
+
     assert(creds);
     assert(session);
 
@@ -114,7 +123,7 @@ extern ssize_t session_init(session_creds_t* creds, session_t* session)
     curl = curl_easy_init();
     assert(curl);
 
-    struct curl_string s = { .len = 0 };
+    struct curl_string s = {.len = 0};
     s.ptr = malloc(s.len + 1);
     assert(s.ptr);
     s.ptr[0] = '\0';
@@ -341,6 +350,79 @@ extern board_t* fetch_board_info(session_t* session, const char* board_name)
 {
     assert(session);
     assert(board_name);
+
+
+    if (!strlen(session->cookie) || !strlen(session->creds->username) || !strlen(session->creds->password)) {
+        // File is present - read it
+        const char* homedir = NULL;
+
+        if ((homedir = getenv("HOME")) == NULL) {
+            homedir = getpwuid(getuid())->pw_dir;
+        }
+
+        assert(homedir);
+        debug("homedir is %s\n", homedir);
+
+        const char* dvach_subdir = "/.mod2ch";
+        const char* dvach_account_file = "/.creds";
+
+        size_t fullpathsize = strlen(homedir) + strlen(dvach_subdir) + strlen(dvach_account_file) + 2;
+        char* fullpath = malloc(fullpathsize);
+        assert(fullpath);
+
+        memset(fullpath, 0, fullpathsize);
+
+        strncpy(fullpath, homedir, strlen(homedir));
+        const char* mode = "r";
+        FILE* file = NULL;
+
+        if ((file = fopen(fullpath, mode)) == NULL) {
+            debug("fopen(%s) no file\n", fullpath);
+            return NULL;
+        }
+
+        size_t buf_size = 1024; // FIXME: will overflow on large file
+        char* buf = (char*)malloc(buf_size);
+        if (buf == NULL) {
+            fprintf(stderr, "read_file malloc error\n");
+            fclose(file);
+            return NULL;
+        }
+
+        memset(buf, 0, buf_size);
+
+        size_t ret = fread(buf, sizeof(char), buf_size, file);
+        fclose(file);
+        debug("fread(%s) %zu bytes\n", fullpath, ret);
+
+        char* strtok_saveptr = NULL;
+        char* line = strtok_r(buf, "\n", &strtok_saveptr);
+        while (line != NULL) {
+            if (sscanf(line, "cookie = %25s\n", session->cookie) == 1) {
+                debug("scanned cookie %s\n", session->cookie);
+            }
+            if (sscanf(line, "username = %25s\n", session->creds->username) == 1) {
+                debug("scanned password %s\n", session->creds->username);
+            }
+            if (sscanf(line, "password = %25s\n", session->creds->password) == 1) {
+                debug("scanned password %s\n", session->creds->password);
+            }
+
+            for (size_t i = 0; i <= MAX_NUM_OF_BOARDS; ++i) {
+                if (!strlen(session->moder.boards[i]) && sscanf(line, "board = %25s\n", session->moder.boards[i]) == 1) {
+                    debug("scanned board %s\n", session->moder.boards[i]);
+                }
+                break;
+            }
+
+            line = strtok_r(NULL, "\n", &strtok_saveptr);
+        }
+
+        debug("populated credentials cookie: %s username: %s password: %s\n",
+            session->cookie, session->creds->username, session->creds->password);
+        free(buf);
+    }
+
 
     debug("received board %s\n", board_name);
 
