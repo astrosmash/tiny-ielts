@@ -2,7 +2,6 @@
 gui_runtime_config* my_app_config = NULL;
 static session_t session = { 0 };
 
-
 // Gui ctor & dtor
 #define Gui_Init (*Gui_Construct)
 
@@ -30,7 +29,7 @@ Gui* Gui_Construct(config_t* config)
 
     gtk_window_set_default_size(GTK_WINDOW(window), 400, 400);
     gtk_window_set_title(GTK_WINDOW(window), "2ch-mod");
-    
+
     gtk_container_set_border_width(GTK_CONTAINER(window), 10);
     g_signal_connect_swapped(window, "delete_event", G_CALLBACK(Gui_Exit), my_app_config);
 
@@ -134,6 +133,14 @@ static void Gui_JoinThread(GtkWidget* widget, gpointer data)
 
 static void* thread_func(void* data)
 {
+    assert(data);
+    gui_runtime_config* g_config = data;
+
+    debug("Launched ok! %s\n", Gui_GetName(g_config->my_gui));
+    debug("passing board %s\n", g_config->WorkerData.board);
+
+    board_t* board = fetch_board_info(&g_config->WorkerData.session, g_config->WorkerData.board);
+    assert(board);
     //    do_network(data, 0);
     return "thread_func launched ok";
 }
@@ -145,7 +152,14 @@ static void* _Gui_RunChildThread(GtkWidget* widget, gpointer data)
     assert(g_config->my_gui);
     Thread* my_thread = NULL;
 
-    if (((my_thread = Thread_Init(&thread_func, g_config->my_config)) == NULL)) {
+    const gchar* board_name = gtk_widget_get_name(GTK_WIDGET(widget));
+    debug("processing board %s\n", board_name);
+
+    memset(&g_config->WorkerData.board, 0, MAX_BOARD_NAME_LENGTH);
+    strncpy(g_config->WorkerData.board, board_name, strlen(board_name));
+    debug("passing %s\n", g_config->WorkerData.board);
+
+    if (((my_thread = Thread_Init(&thread_func, g_config)) == NULL)) {
         debug("cannot launch thread_func! %s\n", Gui_GetName(g_config->my_gui));
     }
     g_config->child_thread = my_thread;
@@ -217,7 +231,10 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
                         allowed = 1;
                     }
                 }
-                if (!allowed) { debug("you are not whitelisted to use this client! %s", creds.username); return; }
+                if (!allowed) {
+                    debug("you are not whitelisted to use this client! %s", creds.username);
+                    return;
+                }
 
                 ssize_t session_res = 0;
                 if ((session_res = session_init(&creds, &session))) {
@@ -227,7 +244,7 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
 
                 _Gui_DrawMainScreen();
                 gtk_widget_show_all(my_app_config->window);
-
+                my_app_config->WorkerData.session = session;
             }
         } else {
             debug("will not trigger session_init - have session present cookie %s user %s pass %s. Just re-launch an app to relogin\n", session.cookie, session.creds->username, session.creds->password);
@@ -244,7 +261,7 @@ static void _Gui_DrawMainScreen()
         GList* children = gtk_container_get_children(GTK_CONTAINER(my_app_config->window));
         fprintf(stdout, "checking child containers...\n");
 
-        for (const GList *iter = children; iter != NULL; iter = g_list_next(iter)) {
+        for (const GList* iter = children; iter != NULL; iter = g_list_next(iter)) {
             fprintf(stdout, "FOUND child...\n");
             gtk_widget_destroy(GTK_WIDGET(iter->data));
         }
@@ -288,16 +305,15 @@ static void _Gui_DrawMainScreen()
     for (size_t i = 0; i < sizeof(session.moder.boards) / sizeof(*session.moder.boards); ++i) {
         char* board_name = session.moder.boards[i];
         if (strlen(board_name)) {
-           debug("Adding button for (%u) %s", i, (char*)session.moder.boards + ( MAX_BOARD_NAME_LENGTH * i ));
+            debug("Adding button for (%zu) %s", i, (char*)session.moder.boards + (MAX_BOARD_NAME_LENGTH * i));
 
-           button = gtk_button_new_with_label(board_name);
-           assert(button);
-           g_signal_connect(button, "clicked", G_CALLBACK(_Gui_RunChildThread), my_app_config);
-           gtk_grid_attach(GTK_GRID(grid), button, 0, i+1, i+1, i+1);
-           gtk_widget_set_name(button, board_name);
+            button = gtk_button_new_with_label(board_name);
+            assert(button);
+            g_signal_connect(button, "clicked", G_CALLBACK(_Gui_RunChildThread), my_app_config);
+            gtk_grid_attach(GTK_GRID(grid), button, 0, i + 1, i + 1, i + 1);
+            gtk_widget_set_name(button, board_name);
         }
     }
-
 }
 
 static void _Gui_DrawLoginInvitationScreen()
@@ -336,7 +352,6 @@ static void _Gui_DrawLoginInvitationScreen()
     g_signal_connect_swapped(button, "clicked", G_CALLBACK(Gui_Exit), my_app_config);
     gtk_grid_attach(GTK_GRID(grid), button, 0, 2, 1, 1);
     gtk_widget_set_name(button, "quit_button");
-
 }
 
 static void _Gui_WantAuthenticate(GtkWidget* widget, gpointer data)

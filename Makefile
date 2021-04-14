@@ -13,15 +13,18 @@ CLANG_INCLUDES_COMMON += -I. -I$(PROJECT_SRC_DIR)/libbpf/include
 
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S), Darwin)
+CJSON = cJSON
 GTK = gtk+-3.0
 else
-GTK = gtk+-3.0-1
+CJSON = cjson
+# GTK = gtk+-3.0-1
+GTK = gtk+-3.0
 endif
 
 GTK_CFLAGS := $(shell pkg-config --cflags $(GTK))
 GTK_INCLUDE := $(shell pkg-config --libs $(GTK))
 
-CLANG_FLAGS_PROJECT += -L$(PROJECT_SRC_DIR) $(CLANG_FLAGS_COMMON) $(GTK_CFLAGS) -lcurl -lcJSON -Wall -Wextra -Wshadow -Wpedantic
+CLANG_FLAGS_PROJECT += -L$(PROJECT_SRC_DIR) $(CLANG_FLAGS_COMMON) $(GTK_CFLAGS) -lcurl -l$(CJSON) -Wall -Wextra -Wshadow -Wpedantic
 CLANG_INCLUDES_PROJECT += $(CLANG_INCLUDES_COMMON) $(GTK_INCLUDE)
 
 NPROC := $(shell nproc)

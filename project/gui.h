@@ -17,7 +17,18 @@ typedef struct {
     Gui* my_gui;
     Thread* child_thread;
     GtkWidget* window;
+
+    struct {
+        char board[MAX_BOARD_NAME_LENGTH];
+        session_t session;
+    } WorkerData;
 } gui_runtime_config;
+
+enum {
+    Username = 1,
+    Password,
+    FilePath
+} _Gui_GetText_Type;
 
 // Gui ctor & dtor
 Gui* Gui_Construct(config_t*);

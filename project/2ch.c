@@ -247,6 +247,7 @@ extern ssize_t session_init(session_creds_t* creds, session_t* session)
                     } else if (strcmp(current_key, "Jids") == 0) {
                         if (cJSON_IsArray(current_val)) {
                             size_t curr_iteration = 0;
+
                             cJSON_ArrayForEach(jid, current_val)
                             {
                                 size_t curr_arr_element = curr_iteration * MAX_CRED_LENGTH;
@@ -256,6 +257,8 @@ extern ssize_t session_init(session_creds_t* creds, session_t* session)
                                     assert(curr_arr_element < MAX_CRED_LENGTH * MAX_NUM_OF_JIDS);
 
                                     memcpy(&session->moder.jids[curr_iteration], jid->valuestring, strlen(jid->valuestring));
+                                    const char null = '\0'; // add null terminator
+                                    memcpy(&session->moder.jids[curr_iteration] + strlen(jid->valuestring), &null, 1);
 
                                     debug("got Jid #%zu (%zu) %s", curr_iteration, curr_arr_element, (char*)session->moder.jids + curr_arr_element);
                                     ++curr_iteration;
@@ -282,7 +285,10 @@ extern ssize_t session_init(session_creds_t* creds, session_t* session)
 
                                     memcpy(&session->moder.boards[curr_iteration], board->valuestring, strlen(board->valuestring));
 
-                                    debug("got Board #%zu (%zu) %s", curr_iteration, curr_arr_element, (char*) session->moder.boards + curr_arr_element);
+                                    const char null = '\0'; // add null terminator
+                                    memcpy(&session->moder.boards[curr_iteration] + strlen(board->valuestring), &null, 1);
+
+                                    debug("got Board #%zu (%zu) %s", curr_iteration, curr_arr_element, (char*)session->moder.boards + curr_arr_element);
                                     ++curr_iteration;
                                 }
                             }
@@ -330,3 +336,114 @@ extern ssize_t session_init(session_creds_t* creds, session_t* session)
 
     return func_res;
 }
+
+extern board_t* fetch_board_info(session_t* session, const char* board_name)
+{
+    assert(session);
+    assert(board_name);
+
+    debug("received board %s\n", board_name);
+
+    board_t* board = malloc(sizeof(board_t));
+    assert(board);
+
+    char* url = malloc(MAX_CRED_LENGTH);
+    assert(url);
+
+    if (!snprintf(url, MAX_CRED_LENGTH - 2, "https://2ch.hk/%s/catalog.json", board_name)) {
+        debug("cannot populate https://2ch.hk/%s/catalog.json", board_name);
+        return NULL;
+    }
+
+    CURL* curl = NULL;
+    CURLcode res = 0;
+
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+
+    curl = curl_easy_init();
+    assert(curl);
+
+    struct curl_string s = { .len = 0 };
+    s.ptr = malloc(s.len + 1);
+    assert(s.ptr);
+    s.ptr[0] = '\0';
+
+    struct curl_slist* headers = NULL;
+
+    char* cookie = malloc(MAX_CRED_LENGTH);
+    char* user_agent = malloc(MAX_CRED_LENGTH);
+    assert(cookie);
+    assert(user_agent);
+
+    snprintf(cookie, MAX_CRED_LENGTH - 2, "Cookie: %s", session->cookie);
+    snprintf(user_agent, MAX_CRED_LENGTH - 2, "User-Agent: 2ch-mod/%f", 0.1);
+
+    debug("will use %s / %s\n", user_agent, cookie);
+
+    headers = curl_slist_append(headers, cookie);
+    headers = curl_slist_append(headers, user_agent);
+    assert(headers);
+
+    curl_easy_setopt(curl, CURLOPT_URL, url);
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_func);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &s);
+
+    res = curl_easy_perform(curl);
+
+    if (res != CURLE_OK) {
+        debug("got curl_easy_perform err %s\n", curl_easy_strerror(res));
+        curl_easy_cleanup(curl);
+        free(s.ptr);
+        s.ptr = NULL;
+
+        return NULL;
+    }
+
+    size_t response_code = 0;
+
+    res = curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
+    if (res != CURLE_OK) {
+        debug("got curl_easy_getinfo err %s\n", curl_easy_strerror(res));
+
+        curl_easy_cleanup(curl);
+        free(s.ptr);
+        s.ptr = NULL;
+
+        return NULL;
+    }
+
+    if (response_code == 200) {
+        debug("%s CURL result %s\n", url, s.ptr);
+
+        const cJSON* fetched_board = NULL;
+
+        cJSON* parse_result = NULL;
+        if ((parse_result = cJSON_Parse(s.ptr)) == NULL) {
+
+            const char* cjson_err = cJSON_GetErrorPtr();
+            if (cjson_err) {
+                debug("cJSON err: %s", cjson_err);
+            }
+            cJSON_Delete(parse_result); // cjson checks for nullptr here
+
+            return NULL;
+        }
+
+        char* trace = cJSON_Print(parse_result);
+        debug("%s\n", trace);
+
+        cJSON_Delete(parse_result); // cjson checks for nullptr here
+    } else {
+        debug("CURL got http error code %zu result %s\n", response_code, s.ptr);
+    }
+
+    curl_global_cleanup();
+    return board;
+}
+
+//extern thread_t* fetch_thread_from_board(session_t* session, board_t* board) {}
+//
+//extern post_t* fetch_post_from_thread(session_t* session, thread_t* thread) {}
+//
+//extern file_t* fetch_file_from_post(session_t* session, post_t* post) {}
