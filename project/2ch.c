@@ -247,16 +247,17 @@ extern ssize_t session_init(session_creds_t* creds, session_t* session)
                     } else if (strcmp(current_key, "Jids") == 0) {
                         if (cJSON_IsArray(current_val)) {
                             size_t curr_iteration = 0;
-                            size_t curr_arr_element = curr_iteration * MAX_CRED_LENGTH;
-
                             cJSON_ArrayForEach(jid, current_val)
                             {
+                                size_t curr_arr_element = curr_iteration * MAX_CRED_LENGTH;
+
                                 if (cJSON_IsString(jid) && jid->valuestring) {
                                     assert(strlen(jid->valuestring) < MAX_CRED_LENGTH);
                                     assert(curr_arr_element < MAX_CRED_LENGTH * MAX_NUM_OF_JIDS);
 
-                                    memcpy(&session->moder.jids + curr_arr_element, jid->valuestring, strlen(jid->valuestring));
-                                    debug("got Jid #%zu %s", curr_iteration, (char*)session->moder.jids + curr_arr_element);
+                                    memcpy(&session->moder.jids[curr_iteration], jid->valuestring, strlen(jid->valuestring));
+
+                                    debug("got Jid #%zu (%zu) %s", curr_iteration, curr_arr_element, (char*)session->moder.jids + curr_arr_element);
                                     ++curr_iteration;
                                 }
                             }
@@ -270,16 +271,18 @@ extern ssize_t session_init(session_creds_t* creds, session_t* session)
                     } else if (strcmp(current_key, "Boards") == 0) {
                         if (cJSON_IsArray(current_val)) {
                             size_t curr_iteration = 0;
-                            size_t curr_arr_element = curr_iteration * MAX_BOARD_NAME_LENGTH;
 
                             cJSON_ArrayForEach(board, current_val)
                             {
+                                size_t curr_arr_element = curr_iteration * MAX_BOARD_NAME_LENGTH;
+
                                 if (cJSON_IsString(board) && board->valuestring) {
                                     assert(strlen(board->valuestring) < MAX_BOARD_NAME_LENGTH);
                                     assert(curr_arr_element < MAX_BOARD_NAME_LENGTH * MAX_NUM_OF_BOARDS);
 
-                                    memcpy(&session->moder.boards + curr_arr_element, board->valuestring, strlen(board->valuestring));
-                                    debug("got Board #%zu %s", curr_iteration, (char*)session->moder.boards + curr_arr_element);
+                                    memcpy(&session->moder.boards[curr_iteration], board->valuestring, strlen(board->valuestring));
+
+                                    debug("got Board #%zu (%zu) %s", curr_iteration, curr_arr_element, (char*) session->moder.boards + curr_arr_element);
                                     ++curr_iteration;
                                 }
                             }

@@ -238,7 +238,7 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
 static void _Gui_DrawMainScreen()
 {
     assert(my_app_config->window);
-    GtkWidget *box = NULL, *entry = NULL, *grid = NULL, *button = NULL, *scroll = NULL;
+    GtkWidget *box = NULL, *entry = NULL, *grid = NULL, *button = NULL, *scroll = NULL, *label = NULL;
 
     if (GTK_IS_CONTAINER(my_app_config->window)) {
         GList* children = gtk_container_get_children(GTK_CONTAINER(my_app_config->window));
@@ -278,29 +278,26 @@ static void _Gui_DrawMainScreen()
     gtk_container_add(GTK_CONTAINER(box), grid);
     gtk_widget_set_name(grid, "main_grid");
 
-    button = gtk_button_new_with_label("Start");
-    assert(button);
-    g_signal_connect(button, "clicked", G_CALLBACK(_Gui_RunChildThread), my_app_config);
-    gtk_grid_attach(GTK_GRID(grid), button, 0, 0, 1, 1);
-    gtk_widget_set_name(entry, "start_button");
+    label = gtk_label_new("Please select a board to fetch threads from.");
+    assert(label);
+    gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_CENTER);
+    gtk_label_set_line_wrap(GTK_LABEL(label), FALSE);
+    gtk_grid_attach(GTK_GRID(grid), label, 0, 0, 1, 1);
+    gtk_widget_set_name(label, "select_thread_label");
 
-    button = gtk_button_new_with_label("Stop");
-    assert(button);
-    g_signal_connect(button, "clicked", G_CALLBACK(_Gui_RunChildThread), my_app_config);
-    gtk_grid_attach(GTK_GRID(grid), button, 1, 0, 1, 1);
-    gtk_widget_set_name(entry, "stop_button");
+    for (size_t i = 0; i < sizeof(session.moder.boards) / sizeof(*session.moder.boards); ++i) {
+        char* board_name = session.moder.boards[i];
+        if (strlen(board_name)) {
+           debug("Adding button for (%u) %s", i, (char*)session.moder.boards + ( MAX_BOARD_NAME_LENGTH * i ));
 
-    button = gtk_button_new_with_label("Quit");
-    assert(button);
-    g_signal_connect_swapped(button, "clicked", G_CALLBACK(Gui_Exit), my_app_config);
-    gtk_grid_attach(GTK_GRID(grid), button, 0, 1, 2, 1);
-    gtk_widget_set_name(entry, "quit_button");
+           button = gtk_button_new_with_label(board_name);
+           assert(button);
+           g_signal_connect(button, "clicked", G_CALLBACK(_Gui_RunChildThread), my_app_config);
+           gtk_grid_attach(GTK_GRID(grid), button, 0, i+1, i+1, i+1);
+           gtk_widget_set_name(button, board_name);
+        }
+    }
 
-    button = gtk_button_new_with_label("Join thread");
-    assert(button);
-    g_signal_connect(button, "clicked", G_CALLBACK(Gui_JoinThread), my_app_config);
-    gtk_grid_attach(GTK_GRID(grid), button, 2, 2, 2, 2);
-    gtk_widget_set_name(entry, "join_thread_button");
 }
 
 static void _Gui_DrawLoginInvitationScreen()
