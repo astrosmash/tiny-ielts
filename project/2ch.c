@@ -320,6 +320,7 @@ extern ssize_t session_init(session_creds_t* creds, session_t* session)
         cJSON_Delete(parse_result); // cjson checks for nullptr here
     } else {
         debug("CURL got http error code %zu result %s\n", response_code, s.ptr);
+        func_res = EXIT_FAILURE;
     }
 
     curl_global_cleanup();

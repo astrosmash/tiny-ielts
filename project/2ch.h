@@ -65,6 +65,8 @@ enum {
     FilePath
 } _Gui_GetText_Type;
 
+const char* client_whitelisted_users[] = {"Alexandr", "Shamil", "shamil1989"};
+
 // Functions and methods
 extern size_t check_local_account(void);
 extern size_t check_local_file(const char*);

@@ -41,7 +41,7 @@ Gui* Gui_Construct(config_t* config)
         _Gui_DrawLoginInvitationScreen();
     }
 
-    gtk_widget_show_all(window);
+    gtk_widget_show_all(my_app_config->window);
 
     return g;
 }
@@ -208,10 +208,23 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
             if (strlen(creds.username) && strlen(creds.password)) {
                 debug("triggering session_init with user %s pass %s\n", creds.username, creds.password);
 
+                size_t allowed = 0;
+                for (size_t i = 0; i < ARRAY_SIZE(client_whitelisted_users); i++) {
+                    if (strcmp(*(client_whitelisted_users + i), creds.username) == 0) {
+                        allowed = 1;
+                    }
+                }
+                if (!allowed) { debug("you are not whitelisted to use this client! %s", creds.username); return; }
+
                 ssize_t session_res = 0;
                 if ((session_res = session_init(&creds, &session))) {
                     debug("was not able to trigger session_init with user %s pass %s (%zd)\n", creds.username, creds.password, session_res);
+                    return;
                 }
+
+                _Gui_DrawMainScreen();
+                gtk_widget_show_all(my_app_config->window);
+
             }
         } else {
             debug("will not trigger session_init - have session present cookie %s user %s pass %s. Just re-launch an app to relogin\n", session.cookie, session.creds->username, session.creds->password);
