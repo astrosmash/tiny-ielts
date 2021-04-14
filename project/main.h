@@ -16,8 +16,8 @@
 #include <sys/stat.h>
 
 #include <cairo.h>
-#include <curl/curl.h>
 #include <cjson/cJSON.h>
+#include <curl/curl.h>
 #include <gtk/gtk.h>
 
 #ifdef __linux__
@@ -32,7 +32,7 @@
             fprintf(stderr, "\n%s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, __VA_ARGS__); \
     } while (0)
 
-#include "config.h"
 #include "2ch.h"
+#include "config.h"
 #include "gui.h"
 #include "network.h"

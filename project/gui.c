@@ -1,3 +1,4 @@
+
 // Gui ctor & dtor
 #define Gui_Init (*Gui_Construct)
 
@@ -19,7 +20,7 @@ Gui* Gui_Construct(config_t* config)
     my_app_config->my_gui = g;
 
     // Start initialization
-    GtkWidget *window = NULL;
+    GtkWidget* window = NULL;
 
     // Main window
     window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
@@ -144,11 +145,13 @@ static void* _Gui_RunChildThread(GtkWidget* widget, gpointer data)
     return NULL;
 }
 
+static session_t session = { 0 };
+
 static void _Gui_GetText(GtkEntry* entry, gpointer data)
 {
     assert(entry);
     assert(data);
-    size_t text_type = *(size_t *) data;
+    size_t text_type = *(size_t*)data;
 
     const char* text = NULL;
     text = gtk_entry_get_text(entry);
@@ -156,7 +159,7 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
     size_t text_len = strlen(text);
 
     if (text_len) {
-        static session_creds_t creds = {0};
+        static session_creds_t creds = { 0 };
         if (text_type == FilePath) {
             debug("read %s\n", text);
             g_print("%s \n", text);
@@ -198,13 +201,17 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
             debug("text_type unknown %zu, doing nothing\n", text_type);
         }
 
-        if (strlen(creds.username) && strlen(creds.password)) {
-            debug("triggering session_init with user %s pass %s\n", creds.username, creds.password);
+        if (strlen(session.cookie) == 0) {
+            if (strlen(creds.username) && strlen(creds.password)) {
+                debug("triggering session_init with user %s pass %s\n", creds.username, creds.password);
 
-            ssize_t session_res = 0;
-            if ((session_res = session_init(&creds))) {
-                 debug("was not able to trigger session_init with user %s pass %s (%zd)\n", creds.username, creds.password, session_res);
+                ssize_t session_res = 0;
+                if ((session_res = session_init(&creds, &session))) {
+                    debug("was not able to trigger session_init with user %s pass %s (%zd)\n", creds.username, creds.password, session_res);
+                }
             }
+        } else {
+            debug("will not trigger session_init - have session present cookie %s user %s pass %s. Just re-launch an app to relogin\n", session.cookie, session.creds->username, session.creds->password);
         }
     }
 }
@@ -259,43 +266,6 @@ static void _Gui_DrawMainScreen(GtkWidget* window, gui_runtime_config* my_app_co
     gtk_grid_attach(GTK_GRID(grid), button, 2, 2, 2, 2);
 }
 
-static void _Gui_DrawLoginScreen(GtkWidget* window, gui_runtime_config* my_app_config)
-{
-    assert(window);
-    GtkWidget *box = NULL, *entry = NULL, *grid = NULL, *button = NULL, *scroll = NULL;
-
-    // Main widget
-    box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
-    assert(box);
-    gtk_container_set_border_width(GTK_CONTAINER(box), 7);
-    gtk_container_add(GTK_CONTAINER(window), box);
-
-    // Text input
-    entry = gtk_entry_new();
-    assert(entry);
-    gtk_container_add(GTK_CONTAINER(box), entry);
-    g_signal_connect(GTK_ENTRY(entry), "activate", G_CALLBACK(_Gui_GetText), NULL);
-
-    grid = gtk_grid_new();
-    assert(grid);
-    gtk_container_add(GTK_CONTAINER(box), grid);
-
-    button = gtk_button_new_with_label("Start");
-    assert(button);
-    g_signal_connect(button, "clicked", G_CALLBACK(_Gui_RunChildThread), my_app_config);
-    gtk_grid_attach(GTK_GRID(grid), button, 0, 0, 1, 1);
-
-    button = gtk_button_new_with_label("Stop");
-    assert(button);
-    g_signal_connect(button, "clicked", G_CALLBACK(_Gui_RunChildThread), my_app_config);
-    gtk_grid_attach(GTK_GRID(grid), button, 1, 0, 1, 1);
-
-    button = gtk_button_new_with_label("Quit");
-    assert(button);
-    g_signal_connect_swapped(button, "clicked", G_CALLBACK(Gui_Exit), my_app_config);
-    gtk_grid_attach(GTK_GRID(grid), button, 0, 1, 2, 1);
-}
-
 static void _Gui_DrawLoginInvitationScreen(GtkWidget* window, gui_runtime_config* my_app_config)
 {
     assert(window);
@@ -329,11 +299,10 @@ static void _Gui_DrawLoginInvitationScreen(GtkWidget* window, gui_runtime_config
     gtk_grid_attach(GTK_GRID(grid), button, 0, 2, 1, 1);
 }
 
-
 static void _Gui_WantAuthenticate(GtkWidget* widget, gpointer data)
 {
     assert(data);
-    GtkWidget* box = data, *grid = NULL, *label = NULL, *entry = NULL;
+    GtkWidget *box = data, *grid = NULL, *label = NULL, *entry = NULL;
 
     // For the program lifetime - we do not want to add form on each click
     static size_t pressed = 0;
@@ -375,5 +344,4 @@ static void _Gui_WantAuthenticate(GtkWidget* widget, gpointer data)
         // redraw
         gtk_widget_show_all(box);
     }
-
 }

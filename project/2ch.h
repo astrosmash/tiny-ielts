@@ -9,8 +9,8 @@
 #define MAX_NUM_OF_BOARDS 40
 
 struct curl_string {
-  char *ptr;
-  size_t len;
+    char* ptr;
+    size_t len;
 };
 
 typedef struct {
@@ -19,11 +19,11 @@ typedef struct {
 } session_creds_t;
 
 typedef struct {
-    size_t session_id;
-
-    session_creds_t *creds;
+    session_creds_t* creds;
 
     char cookie[MAX_ARBITRARY_CHAR_LENGTH];
+
+    char telegram_key[MAX_ARBITRARY_CHAR_LENGTH];
 
     struct {
         size_t num;
@@ -47,7 +47,8 @@ typedef struct {
         char boards[MAX_NUM_OF_BOARDS][MAX_BOARD_NAME_LENGTH];
 
         enum {
-            true = 1, false
+            true = 1,
+            false
         } public_log;
 
         size_t last_login;
@@ -55,8 +56,6 @@ typedef struct {
         size_t last_action;
 
     } moder;
-
-    char telegram_key[MAX_ARBITRARY_CHAR_LENGTH];
 
 } session_t;
 
@@ -66,13 +65,12 @@ enum {
     FilePath
 } _Gui_GetText_Type;
 
-
 // Functions and methods
 extern size_t check_local_account(void);
 extern size_t check_local_file(const char*);
-extern ssize_t session_init(session_creds_t*);
+extern ssize_t session_init(session_creds_t*, session_t*);
 
-static size_t curl_write_func(void *, size_t, size_t, struct curl_string *);
+static size_t curl_write_func(void*, size_t, size_t, struct curl_string*);
 
 // Definition
 #include "2ch.c"
