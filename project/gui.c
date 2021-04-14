@@ -26,8 +26,11 @@ Gui* Gui_Construct(config_t* config)
     // Main window
     window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     assert(window);
+    gtk_widget_set_name(window, "main_window");
+
     gtk_window_set_default_size(GTK_WINDOW(window), 400, 400);
     gtk_window_set_title(GTK_WINDOW(window), "2ch-mod");
+    
     gtk_container_set_border_width(GTK_CONTAINER(window), 10);
     g_signal_connect_swapped(window, "delete_event", G_CALLBACK(Gui_Exit), my_app_config);
 
@@ -237,16 +240,28 @@ static void _Gui_DrawMainScreen()
     assert(my_app_config->window);
     GtkWidget *box = NULL, *entry = NULL, *grid = NULL, *button = NULL, *scroll = NULL;
 
+    if (GTK_IS_CONTAINER(my_app_config->window)) {
+        GList* children = gtk_container_get_children(GTK_CONTAINER(my_app_config->window));
+        fprintf(stdout, "checking child containers...\n");
+
+        for (const GList *iter = children; iter != NULL; iter = g_list_next(iter)) {
+            fprintf(stdout, "FOUND child...\n");
+            gtk_widget_destroy(GTK_WIDGET(iter->data));
+        }
+    }
+
     // Main widget
     box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
     assert(box);
     gtk_container_set_border_width(GTK_CONTAINER(box), 7);
     gtk_container_add(GTK_CONTAINER(my_app_config->window), box);
+    gtk_widget_set_name(box, "main_box");
 
     // Text input
     entry = gtk_entry_new();
     assert(entry);
     gtk_container_add(GTK_CONTAINER(box), entry);
+    gtk_widget_set_name(entry, "main_text_input");
 
     static size_t mode = FilePath;
     g_signal_connect(GTK_ENTRY(entry), "activate", G_CALLBACK(_Gui_GetText), &mode);
@@ -256,30 +271,36 @@ static void _Gui_DrawMainScreen()
     g_object_set(scroll, "shadow-type", GTK_SHADOW_IN, NULL);
     gtk_container_set_border_width(GTK_CONTAINER(scroll), 17);
     gtk_container_add(GTK_CONTAINER(box), scroll);
+    gtk_widget_set_name(scroll, "main_scroll");
 
     grid = gtk_grid_new();
     assert(grid);
     gtk_container_add(GTK_CONTAINER(box), grid);
+    gtk_widget_set_name(grid, "main_grid");
 
     button = gtk_button_new_with_label("Start");
     assert(button);
     g_signal_connect(button, "clicked", G_CALLBACK(_Gui_RunChildThread), my_app_config);
     gtk_grid_attach(GTK_GRID(grid), button, 0, 0, 1, 1);
+    gtk_widget_set_name(entry, "start_button");
 
     button = gtk_button_new_with_label("Stop");
     assert(button);
     g_signal_connect(button, "clicked", G_CALLBACK(_Gui_RunChildThread), my_app_config);
     gtk_grid_attach(GTK_GRID(grid), button, 1, 0, 1, 1);
+    gtk_widget_set_name(entry, "stop_button");
 
     button = gtk_button_new_with_label("Quit");
     assert(button);
     g_signal_connect_swapped(button, "clicked", G_CALLBACK(Gui_Exit), my_app_config);
     gtk_grid_attach(GTK_GRID(grid), button, 0, 1, 2, 1);
+    gtk_widget_set_name(entry, "quit_button");
 
     button = gtk_button_new_with_label("Join thread");
     assert(button);
     g_signal_connect(button, "clicked", G_CALLBACK(Gui_JoinThread), my_app_config);
     gtk_grid_attach(GTK_GRID(grid), button, 2, 2, 2, 2);
+    gtk_widget_set_name(entry, "join_thread_button");
 }
 
 static void _Gui_DrawLoginInvitationScreen()
@@ -292,27 +313,33 @@ static void _Gui_DrawLoginInvitationScreen()
     assert(box);
     gtk_container_set_border_width(GTK_CONTAINER(box), 2);
     gtk_container_add(GTK_CONTAINER(my_app_config->window), box);
+    gtk_widget_set_name(box, "main_box");
 
     // Grid
     grid = gtk_grid_new();
     assert(grid);
     gtk_container_add(GTK_CONTAINER(box), grid);
+    gtk_widget_set_name(grid, "main_grid");
 
     label = gtk_label_new("No local account found. Do you want to authenticate?");
     assert(label);
     gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_CENTER);
     gtk_label_set_line_wrap(GTK_LABEL(label), FALSE);
     gtk_grid_attach(GTK_GRID(grid), label, 0, 0, 1, 1);
+    gtk_widget_set_name(label, "no_account_warning");
 
     button = gtk_button_new_with_label("Yes");
     assert(button);
     g_signal_connect(button, "clicked", G_CALLBACK(_Gui_WantAuthenticate), box);
     gtk_grid_attach(GTK_GRID(grid), button, 0, 1, 1, 1);
+    gtk_widget_set_name(button, "yes_button");
 
     button = gtk_button_new_with_label("Quit");
     assert(button);
     g_signal_connect_swapped(button, "clicked", G_CALLBACK(Gui_Exit), my_app_config);
     gtk_grid_attach(GTK_GRID(grid), button, 0, 2, 1, 1);
+    gtk_widget_set_name(button, "quit_button");
+
 }
 
 static void _Gui_WantAuthenticate(GtkWidget* widget, gpointer data)
@@ -328,16 +355,19 @@ static void _Gui_WantAuthenticate(GtkWidget* widget, gpointer data)
         grid = gtk_grid_new();
         assert(grid);
         gtk_container_add(GTK_CONTAINER(box), grid);
+        gtk_widget_set_name(grid, "main_grid");
 
         label = gtk_label_new("Username");
         assert(label);
         gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_CENTER);
         gtk_label_set_line_wrap(GTK_LABEL(label), FALSE);
         gtk_grid_attach(GTK_GRID(grid), label, 0, 3, 1, 1);
+        gtk_widget_set_name(label, "username_label");
 
         entry = gtk_entry_new();
         assert(entry);
         gtk_grid_attach(GTK_GRID(grid), entry, 0, 4, 1, 1);
+        gtk_widget_set_name(entry, "username_entry");
 
         static size_t usermode = Username;
         g_signal_connect(GTK_ENTRY(entry), "activate", G_CALLBACK(_Gui_GetText), &usermode);
@@ -347,10 +377,12 @@ static void _Gui_WantAuthenticate(GtkWidget* widget, gpointer data)
         gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_CENTER);
         gtk_label_set_line_wrap(GTK_LABEL(label), FALSE);
         gtk_grid_attach(GTK_GRID(grid), label, 0, 5, 1, 1);
+        gtk_widget_set_name(label, "password_label");
 
         entry = gtk_entry_new();
         assert(entry);
         gtk_grid_attach(GTK_GRID(grid), entry, 0, 6, 1, 1);
+        gtk_widget_set_name(entry, "password_entry");
 
         static size_t passmode = Password;
         g_signal_connect(GTK_ENTRY(entry), "activate", G_CALLBACK(_Gui_GetText), &passmode);
