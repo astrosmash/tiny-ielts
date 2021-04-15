@@ -27,7 +27,7 @@ Gui* Gui_Construct(config_t* config)
     assert(window);
     gtk_widget_set_name(window, "main_window");
 
-    gtk_window_set_default_size(GTK_WINDOW(window), 1920, 1080);
+    gtk_window_set_default_size(GTK_WINDOW(window), 1600, 800);
     gtk_window_set_title(GTK_WINDOW(window), "2ch-mod");
 
     gtk_container_set_border_width(GTK_CONTAINER(window), 10);
@@ -200,6 +200,19 @@ static void* thread_func(void* data)
             assert(sbox);
 
             gtk_container_add (GTK_CONTAINER (sbox), label);
+
+            char* text = malloc(21);
+            assert(text);
+            memset(text, 0, 21);
+
+            snprintf(text, 20, "- <b>%zu</b> posts", thread_posts_count);
+
+            GtkWidget *textlabel = gtk_label_new (NULL);
+            gtk_label_set_markup (GTK_LABEL (textlabel), text);
+
+            gtk_container_add (GTK_CONTAINER (sbox), textlabel);
+
+//            free(text); !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
             gtk_grid_attach(GTK_GRID(grid), sbox, 0, i, 1, 1);
 
