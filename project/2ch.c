@@ -632,6 +632,11 @@ extern board_t* fetch_board_info(session_t* session, const char* board_name)
                                     board->thread[curr_iteration].posts_count = current_val->valueint;
                                     debug("got posts_count %zu\n", board->thread[curr_iteration].posts_count);
                                 }
+                            } else if (strcmp(current_key, "num") == 0) {
+                                if (cJSON_IsString(current_val) && current_val->valuestring) {
+                                    board->thread[curr_iteration].num = atoi(current_val->valuestring);
+                                    debug("got num %zu\n", board->thread[curr_iteration].num);
+                                }
                             } else if (strcmp(current_key, "sticky") == 0) {
                                 if (cJSON_IsNumber(current_val) && current_val->valueint) {
                                     board->thread[curr_iteration].sticky = current_val->valueint ? true : false;

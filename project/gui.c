@@ -187,7 +187,7 @@ static void* thread_func(void* data)
         char* thread_date = board->thread[i].date;
 
         if (strlen(thread_subject)) {
-            debug("Adding view for (%zu) %s\n", i, thread_subject);
+            debug("Adding view for (%zu) %s/%zu\n", i, thread_subject, thread_num);
 
             label = gtk_label_new(thread_subject);
             assert(label);
