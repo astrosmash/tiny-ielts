@@ -359,6 +359,75 @@ static void _Gui_DrawMainScreen()
     gtk_grid_attach(GTK_GRID(grid), label, 0, 0, 1, 1);
     gtk_widget_set_name(label, "select_thread_label");
 
+
+    if (!strlen(session.cookie) || !strlen(session.creds->username) || !strlen(session.creds->password)) {
+        // File is present - read it
+        const char* homedir = NULL;
+
+        if ((homedir = getenv("HOME")) == NULL) {
+            homedir = getpwuid(getuid())->pw_dir;
+        }
+
+        assert(homedir);
+        debug("homedir is %s\n", homedir);
+
+        const char* dvach_account_file = "/.mod2ch/.creds";
+
+        size_t fullpathsize = strlen(homedir) + strlen(dvach_account_file) + 2;
+        char* fullpath = malloc(fullpathsize);
+        assert(fullpath);
+
+        memset(fullpath, 0, fullpathsize);
+
+        strncpy(fullpath, homedir, strlen(homedir));
+
+        strncat(fullpath, dvach_account_file, strlen(dvach_account_file));
+        debug("reading credentials from %s\n", fullpath);
+
+        const char* opmode = "r";
+        FILE* file = NULL;
+
+        if ((file = fopen(fullpath, opmode)) == NULL) {
+            debug("fopen(%s) no file\n", fullpath);
+        }
+
+        size_t buf_size = 1024; // FIXME: will overflow on large file
+        char* buf = (char*)malloc(buf_size);
+        if (buf == NULL) {
+            fprintf(stderr, "read_file malloc error\n");
+            fclose(file);
+        }
+
+        memset(buf, 0, buf_size);
+
+        size_t ret = fread(buf, sizeof(char), buf_size, file);
+        fclose(file);
+        debug("fread(%s) %zu bytes\n", fullpath, ret);
+        if (!ret) return; // no content was read in file
+
+        char* strtok_saveptr = NULL;
+        char* line = strtok_r(buf, "\n", &strtok_saveptr);
+        while (line != NULL) {
+            if (sscanf(line, "cookie = %25s\n", session.cookie) == 1) {
+                debug("scanned cookie %s\n", session.cookie);
+            }
+            // No need to scan creds (user/pass) -- creds struct was not allocated!!
+
+            for (size_t i = 0; i <= MAX_NUM_OF_BOARDS; ++i) {
+                if (!strlen(session.moder.boards[i]) && sscanf(line, "board = %25s\n", session.moder.boards[i]) == 1) {
+                    debug("scanned board %s\n", session.moder.boards[i]);
+                    break;
+                }
+            }
+
+            line = strtok_r(NULL, "\n", &strtok_saveptr);
+        }
+
+        debug("populated credentials cookie: %s\n", session.cookie);
+        free(buf);
+    }
+
+
     for (size_t i = 0; i < sizeof(session.moder.boards) / sizeof(*session.moder.boards); ++i) {
         char* board_name = session.moder.boards[i];
         if (strlen(board_name)) {

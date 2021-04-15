@@ -23,9 +23,10 @@ extern size_t check_local_account(void)
 
     strncpy(fullpath, homedir, strlen(homedir));
 
+    strncat(fullpath, dvach_subdir, strlen(dvach_subdir));
+
     struct stat stat_buf = {0};
 
-    strncat(fullpath, dvach_subdir, strlen(dvach_subdir));
     debug("local folder with credentials is %s\n", fullpath);
 
     if ((res = stat(fullpath, &stat_buf))) {
@@ -350,78 +351,6 @@ extern board_t* fetch_board_info(session_t* session, const char* board_name)
 {
     assert(session);
     assert(board_name);
-
-
-    if (!strlen(session->cookie) || !strlen(session->creds->username) || !strlen(session->creds->password)) {
-        // File is present - read it
-        const char* homedir = NULL;
-
-        if ((homedir = getenv("HOME")) == NULL) {
-            homedir = getpwuid(getuid())->pw_dir;
-        }
-
-        assert(homedir);
-        debug("homedir is %s\n", homedir);
-
-        const char* dvach_subdir = "/.mod2ch";
-        const char* dvach_account_file = "/.creds";
-
-        size_t fullpathsize = strlen(homedir) + strlen(dvach_subdir) + strlen(dvach_account_file) + 2;
-        char* fullpath = malloc(fullpathsize);
-        assert(fullpath);
-
-        memset(fullpath, 0, fullpathsize);
-
-        strncpy(fullpath, homedir, strlen(homedir));
-        const char* mode = "r";
-        FILE* file = NULL;
-
-        if ((file = fopen(fullpath, mode)) == NULL) {
-            debug("fopen(%s) no file\n", fullpath);
-            return NULL;
-        }
-
-        size_t buf_size = 1024; // FIXME: will overflow on large file
-        char* buf = (char*)malloc(buf_size);
-        if (buf == NULL) {
-            fprintf(stderr, "read_file malloc error\n");
-            fclose(file);
-            return NULL;
-        }
-
-        memset(buf, 0, buf_size);
-
-        size_t ret = fread(buf, sizeof(char), buf_size, file);
-        fclose(file);
-        debug("fread(%s) %zu bytes\n", fullpath, ret);
-
-        char* strtok_saveptr = NULL;
-        char* line = strtok_r(buf, "\n", &strtok_saveptr);
-        while (line != NULL) {
-            if (sscanf(line, "cookie = %25s\n", session->cookie) == 1) {
-                debug("scanned cookie %s\n", session->cookie);
-            }
-            if (sscanf(line, "username = %25s\n", session->creds->username) == 1) {
-                debug("scanned password %s\n", session->creds->username);
-            }
-            if (sscanf(line, "password = %25s\n", session->creds->password) == 1) {
-                debug("scanned password %s\n", session->creds->password);
-            }
-
-            for (size_t i = 0; i <= MAX_NUM_OF_BOARDS; ++i) {
-                if (!strlen(session->moder.boards[i]) && sscanf(line, "board = %25s\n", session->moder.boards[i]) == 1) {
-                    debug("scanned board %s\n", session->moder.boards[i]);
-                }
-                break;
-            }
-
-            line = strtok_r(NULL, "\n", &strtok_saveptr);
-        }
-
-        debug("populated credentials cookie: %s username: %s password: %s\n",
-            session->cookie, session->creds->username, session->creds->password);
-        free(buf);
-    }
 
 
     debug("received board %s\n", board_name);
