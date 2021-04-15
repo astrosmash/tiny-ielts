@@ -138,7 +138,7 @@ static void* thread_func(void* data)
     gui_runtime_config* g_config = data;
 
     debug("Launched ok! %s\n", Gui_GetName(g_config->my_gui));
-    debug("passing board %s\n", g_config->WorkerData.board);
+    debug("passing board %s (cookie %s)\n", g_config->WorkerData.board,  g_config->WorkerData.session.cookie);
 
     board_t* board = fetch_board_info(&g_config->WorkerData.session, g_config->WorkerData.board);
     assert(board);
@@ -158,7 +158,8 @@ static void* _Gui_RunChildThread(GtkWidget* widget, gpointer data)
 
     memset(&g_config->WorkerData.board, 0, MAX_BOARD_NAME_LENGTH);
     strncpy(g_config->WorkerData.board, board_name, strlen(board_name));
-    debug("passing %s\n", g_config->WorkerData.board);
+    g_config->WorkerData.session = session;
+    debug("passing %s(%s)\n", g_config->WorkerData.board, g_config->WorkerData.session.cookie);
 
     if (((my_thread = Thread_Init(&thread_func, g_config)) == NULL)) {
         debug("cannot launch thread_func! %s\n", Gui_GetName(g_config->my_gui));
@@ -299,9 +300,9 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
                 free(content);
                 fclose(file);
 
+                my_app_config->WorkerData.session = session;
                 _Gui_DrawMainScreen();
                 gtk_widget_show_all(my_app_config->window);
-                my_app_config->WorkerData.session = session;
             }
         } else {
             debug("will not trigger session_init - have session present cookie %s user %s pass %s. Just re-launch an app to relogin\n", session.cookie, session.creds->username, session.creds->password);
