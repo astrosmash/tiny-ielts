@@ -27,7 +27,7 @@ Gui* Gui_Construct(config_t* config)
     assert(window);
     gtk_widget_set_name(window, "main_window");
 
-    gtk_window_set_default_size(GTK_WINDOW(window), 400, 400);
+    gtk_window_set_default_size(GTK_WINDOW(window), 1920, 1080);
     gtk_window_set_title(GTK_WINDOW(window), "2ch-mod");
 
     gtk_container_set_border_width(GTK_CONTAINER(window), 10);
@@ -154,19 +154,30 @@ static void* thread_func(void* data)
         }
     }
 
-    GtkWidget *box = NULL, *label = NULL, *grid = NULL;
 
-    // Main widget
-    box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
-    assert(box);
-    gtk_container_set_border_width(GTK_CONTAINER(box), 7);
-    gtk_container_add(GTK_CONTAINER(my_app_config->window), box);
-    gtk_widget_set_name(box, "main_box");
+    GtkWidget *box = NULL, *label = NULL, *grid = NULL, *scroll = NULL, *sbox = NULL, *separator = NULL;
+
+    scroll = gtk_scrolled_window_new(NULL, NULL);
+    assert(scroll);
+    gtk_container_add(GTK_CONTAINER(my_app_config->window), scroll);
+
+    gtk_widget_set_name(scroll, "main_scroll");
+    gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scroll),
+                                    GTK_POLICY_AUTOMATIC,
+                                    GTK_POLICY_AUTOMATIC);
+
 
     grid = gtk_grid_new();
     assert(grid);
-    gtk_container_add(GTK_CONTAINER(box), grid);
+
     gtk_widget_set_name(grid, "main_grid");
+    gtk_grid_set_column_homogeneous (GTK_GRID (grid), TRUE);
+
+    gtk_container_add(GTK_CONTAINER(scroll), grid);
+
+    gtk_grid_set_column_spacing (GTK_GRID (grid), 10);
+    gtk_grid_set_row_spacing (GTK_GRID (grid), 10);
+
 
     for (size_t i = 0; i < sizeof(board->thread) / sizeof(*board->thread); ++i) {
 
@@ -180,14 +191,22 @@ static void* thread_func(void* data)
 
             label = gtk_label_new(thread_subject);
             assert(label);
+
+            gtk_widget_set_name(label, thread_subject);
             gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_CENTER);
             gtk_label_set_line_wrap(GTK_LABEL(label), FALSE);
-            gtk_grid_attach(GTK_GRID(grid), label, 0, i + 1, i + 1, i + 1);
-            gtk_widget_set_name(label, thread_subject);
 
-            gtk_widget_show_all(my_app_config->window);
+            sbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 10);
+            assert(sbox);
+
+            gtk_container_add (GTK_CONTAINER (sbox), label);
+
+            gtk_grid_attach(GTK_GRID(grid), sbox, 0, i, 1, 1);
+
         }
     }
+
+    gtk_widget_show_all(my_app_config->window);
 
     //    do_network(data, 0);
     return "thread_func launched ok";
