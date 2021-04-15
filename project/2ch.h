@@ -99,7 +99,7 @@ typedef struct {
 
     bool closed;
 
-    char comment[MAX_ARBITRARY_CHAR_LENGTH];
+    char comment[90 * MAX_ARBITRARY_CHAR_LENGTH];
 
     char date[MAX_ARBITRARY_CHAR_LENGTH];
 

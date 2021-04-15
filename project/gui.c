@@ -1,4 +1,3 @@
-
 // Global vars
 gui_runtime_config* my_app_config = NULL;
 static session_t session = { 0 };
@@ -138,10 +137,58 @@ static void* thread_func(void* data)
     gui_runtime_config* g_config = data;
 
     debug("Launched ok! %s\n", Gui_GetName(g_config->my_gui));
-    debug("passing board %s (cookie %s)\n", g_config->WorkerData.board,  g_config->WorkerData.session.cookie);
+    debug("passing board %s (cookie %s)\n", g_config->WorkerData.board, g_config->WorkerData.session.cookie);
 
     board_t* board = fetch_board_info(&g_config->WorkerData.session, g_config->WorkerData.board);
     assert(board);
+
+    assert(my_app_config->window);
+
+    if (GTK_IS_CONTAINER(my_app_config->window)) {
+        GList* children = gtk_container_get_children(GTK_CONTAINER(my_app_config->window));
+        fprintf(stdout, "checking child containers...\n");
+
+        for (const GList* iter = children; iter != NULL; iter = g_list_next(iter)) {
+            fprintf(stdout, "FOUND child...\n");
+            gtk_widget_destroy(GTK_WIDGET(iter->data));
+        }
+    }
+
+    GtkWidget *box = NULL, *label = NULL, *grid = NULL;
+
+    // Main widget
+    box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+    assert(box);
+    gtk_container_set_border_width(GTK_CONTAINER(box), 7);
+    gtk_container_add(GTK_CONTAINER(my_app_config->window), box);
+    gtk_widget_set_name(box, "main_box");
+
+    grid = gtk_grid_new();
+    assert(grid);
+    gtk_container_add(GTK_CONTAINER(box), grid);
+    gtk_widget_set_name(grid, "main_grid");
+
+    for (size_t i = 0; i < sizeof(board->thread) / sizeof(*board->thread); ++i) {
+
+        size_t thread_num = board->thread[i].num;
+        size_t thread_posts_count = board->thread[i].posts_count;
+        char* thread_subject = board->thread[i].subject;
+        char* thread_date = board->thread[i].date;
+
+        if (strlen(thread_subject)) {
+            debug("Adding view for (%zu) %s\n", i, thread_subject);
+
+            label = gtk_label_new(thread_subject);
+            assert(label);
+            gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_CENTER);
+            gtk_label_set_line_wrap(GTK_LABEL(label), FALSE);
+            gtk_grid_attach(GTK_GRID(grid), label, 0, i + 1, i + 1, i + 1);
+            gtk_widget_set_name(label, thread_subject);
+
+            gtk_widget_show_all(my_app_config->window);
+        }
+    }
+
     //    do_network(data, 0);
     return "thread_func launched ok";
 }
@@ -244,7 +291,6 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
                     return;
                 }
 
-
                 const char* homedir = NULL;
 
                 if ((homedir = getenv("HOME")) == NULL) {
@@ -291,7 +337,7 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
                     }
                 }
 
-                size_t ret = fwrite(content, sizeof (char), strlen(content), file);
+                size_t ret = fwrite(content, sizeof(char), strlen(content), file);
                 if (!ret) {
                     debug("fwrite(%s) cannot write to file\n", fullpath);
                     return;
@@ -360,7 +406,6 @@ static void _Gui_DrawMainScreen()
     gtk_grid_attach(GTK_GRID(grid), label, 0, 0, 1, 1);
     gtk_widget_set_name(label, "select_thread_label");
 
-
     if (!strlen(session.cookie) || !strlen(session.creds->username) || !strlen(session.creds->password)) {
         // File is present - read it
         const char* homedir = NULL;
@@ -404,7 +449,8 @@ static void _Gui_DrawMainScreen()
         size_t ret = fread(buf, sizeof(char), buf_size, file);
         fclose(file);
         debug("fread(%s) %zu bytes\n", fullpath, ret);
-        if (!ret) return; // no content was read in file
+        if (!ret)
+            return; // no content was read in file
 
         char* strtok_saveptr = NULL;
         char* line = strtok_r(buf, "\n", &strtok_saveptr);
@@ -427,7 +473,6 @@ static void _Gui_DrawMainScreen()
         debug("populated credentials cookie: %s\n", session.cookie);
         free(buf);
     }
-
 
     for (size_t i = 0; i < sizeof(session.moder.boards) / sizeof(*session.moder.boards); ++i) {
         char* board_name = session.moder.boards[i];
