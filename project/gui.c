@@ -3,7 +3,7 @@
 
 // Global state vars
 GuiRuntimeConfig* my_app_config = NULL;
-static session_t session = { 0 };
+session_t* session = NULL;
 
 Gui* Gui_Construct(void)
 {
@@ -17,6 +17,10 @@ Gui* Gui_Construct(void)
     my_app_config = malloc(sizeof(GuiRuntimeConfig));
     assert(my_app_config);
     memset(my_app_config, 0, sizeof(*my_app_config));
+
+    session = malloc(sizeof (session_t));
+    assert(session);
+    memset(session, 0, sizeof(*session));
 
     // Get screen size
     GdkRectangle workarea = { 0 };
@@ -66,6 +70,9 @@ void Gui_Destruct(Gui** g)
 {
     if (my_app_config->child_thread)
         Thread_Destruct(&my_app_config->child_thread);
+
+    if (session)
+        free(session);
 
     assert(*g);
     debug(3, "Freed object on %p\n", (void*)*g);
@@ -127,7 +134,7 @@ static void _Gui_RunChildThread(GtkWidget* widget, gpointer data)
     strncpy(g_config->WorkerData.board, board_name, strlen(board_name));
 
     g_config->WorkerData.session = session;
-    debug(3, "Passing %s(%s)\n", g_config->WorkerData.board, g_config->WorkerData.session.cookie);
+    debug(3, "Passing %s(%s)\n", g_config->WorkerData.board, g_config->WorkerData.session->cookie);
 
     if (((my_thread = Thread_Init(&thread_func, g_config)) == NULL)) {
         debug(1, "Cannot launch thread_func! %s\n", Gui_GetName(g_config->my_gui));
@@ -171,9 +178,9 @@ static void* thread_func(void* data)
     GuiRuntimeConfig* g_config = data;
 
     debug(3, "thread_func launched ok! %s\n", Gui_GetName(g_config->my_gui));
-    debug(3, "passing board %s (cookie %s)\n", g_config->WorkerData.board, g_config->WorkerData.session.cookie);
+    debug(3, "passing board %s (cookie %s)\n", g_config->WorkerData.board, g_config->WorkerData.session->cookie);
 
-    board_t* board = fetch_board_info(&g_config->WorkerData.session, g_config->WorkerData.board);
+    board_t* board = fetch_board_info(g_config->WorkerData.session, g_config->WorkerData.board);
     assert(board);
 
     assert(my_app_config->window);
@@ -281,7 +288,7 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
             debug(1, "text_type unknown %zu, doing nothing\n", text_type);
         }
 
-        if (strlen(session.cookie) == 0) {
+        if (strlen(session->cookie) == 0) {
             if (strlen(creds.username) && strlen(creds.password)) {
                 debug(3, "Triggering session_init with user %s pass %s\n", creds.username, creds.password);
 
@@ -297,7 +304,8 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
                 }
 
                 ssize_t session_res = 0;
-                if ((session_res = session_init(&creds, &session))) {
+
+                if ((session_res = session_init(&creds, session))) {
                     debug(1, "Was not able to trigger session_init with user %s pass %s (%zd)\n", creds.username, creds.password, session_res);
                     return;
                 }
@@ -319,14 +327,14 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
                 assert(content);
                 memset(content, 0, MAX_ARBITRARY_CHAR_LENGTH);
 
-                snprintf(content, MAX_ARBITRARY_CHAR_LENGTH - 2, "cookie = %s\nusername = %s\npassword = %s\n", session.cookie, session.creds->username, session.creds->password);
+                snprintf(content, MAX_ARBITRARY_CHAR_LENGTH - 2, "cookie = %s\nusername = %s\npassword = %s\n", session->cookie, session->creds->username, session->creds->password);
 
                 for (size_t i = 0; i <= MAX_NUM_OF_BOARDS; ++i) {
-                    if (strlen(session.moder.boards[i])) {
+                    if (strlen(session->moder.boards[i])) {
                         char* add = NULL;
                         add = malloc(MAX_ARBITRARY_CHAR_LENGTH);
                         assert(add);
-                        snprintf(add, MAX_ARBITRARY_CHAR_LENGTH, "board = %s\n", session.moder.boards[i]);
+                        snprintf(add, MAX_ARBITRARY_CHAR_LENGTH, "board = %s\n", session->moder.boards[i]);
                         strncat(content, add, strlen(add));
                         free(add);
                     }
@@ -350,7 +358,7 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
                 gtk_widget_show_all(my_app_config->window);
             }
         } else {
-            debug(4, "Will not trigger session_init - have session present cookie %s user %s pass %s. Just re-launch an app to relogin\n", session.cookie, session.creds->username, session.creds->password);
+            debug(4, "Will not trigger session_init - have session present cookie %s user %s pass %s. Just re-launch an app to relogin\n", session->cookie, session->creds->username, session->creds->password);
         }
     }
 }
@@ -383,7 +391,7 @@ static void _Gui_DrawMainScreen(void)
     gtk_grid_attach(GTK_GRID(grid), label, 0, 0, 1, 1);
     gtk_widget_set_name(label, "select_thread_label");
 
-    if (!strlen(session.cookie) || !strlen(session.creds->username) || !strlen(session.creds->password)) {
+    if (!strlen(session->cookie) || !strlen(session->creds->username) || !strlen(session->creds->password)) {
         // File is present - read it
         const char* fullpath = creds_file_path(false, false);
         assert(fullpath);
@@ -425,13 +433,13 @@ static void _Gui_DrawMainScreen(void)
         char* strtok_saveptr = NULL;
         char* line = strtok_r(buf, "\n", &strtok_saveptr);
         while (line != NULL) {
-            if (sscanf(line, "cookie = %99s\n", session.cookie) == 1) { // read no more than 99 bytes
-                debug(3, "scanned cookie %s\n", session.cookie);
+            if (sscanf(line, "cookie = %99s\n", session->cookie) == 1) { // read no more than 99 bytes
+                debug(3, "scanned cookie %s\n", session->cookie);
             }
 
             for (size_t i = 0; i <= MAX_NUM_OF_BOARDS; ++i) {
-                if (!strlen(session.moder.boards[i]) && sscanf(line, "board = %15s\n", session.moder.boards[i]) == 1) { // read no more than 15 bytes
-                    debug(3, "scanned board %s\n", session.moder.boards[i]);
+                if (!strlen(session->moder.boards[i]) && sscanf(line, "board = %15s\n", session->moder.boards[i]) == 1) { // read no more than 15 bytes
+                    debug(3, "scanned board %s\n", session->moder.boards[i]);
                     break;
                 }
             }
@@ -439,12 +447,12 @@ static void _Gui_DrawMainScreen(void)
             line = strtok_r(NULL, "\n", &strtok_saveptr);
         }
 
-        debug(3, "populated credentials cookie: %s\n", session.cookie);
+        debug(3, "populated credentials cookie: %s\n", session->cookie);
         free(buf);
     }
 
-    for (size_t i = 0; i < sizeof(session.moder.boards) / sizeof(*session.moder.boards); ++i) {
-        char* board_name = (char*)session.moder.boards + (MAX_BOARD_NAME_LENGTH * i);
+    for (size_t i = 0; i < sizeof(session->moder.boards) / sizeof(*session->moder.boards); ++i) {
+        char* board_name = (char*)session->moder.boards + (MAX_BOARD_NAME_LENGTH * i);
         if (strlen(board_name)) {
             debug(3, "Adding button for (%zu) %s", i, board_name);
 

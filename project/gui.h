@@ -17,7 +17,7 @@ typedef struct {
         // Board to draw
         char board[MAX_BOARD_NAME_LENGTH];
         // Session details to use
-        session_t session;
+        session_t* session;
     } WorkerData;
 } GuiRuntimeConfig;
 
