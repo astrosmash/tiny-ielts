@@ -5,54 +5,49 @@
 
 typedef struct {
     char name[maxGuiNameLength + 1];
-    GtkApplication* app;
-    gpointer user_data;
 } Gui;
 
 typedef struct {
-    config_t* my_config;
     Gui* my_gui;
     Thread* child_thread;
+    // Main window to (re)draw on
     GtkWidget* window;
 
     struct {
+        // Board to draw
         char board[MAX_BOARD_NAME_LENGTH];
+        // Session details to use
         session_t session;
     } WorkerData;
-} gui_runtime_config;
+} GuiRuntimeConfig;
 
 enum {
     Username = 1,
     Password,
-    FilePath
 } _Gui_GetText_Type;
 
 // Gui ctor & dtor
-Gui* Gui_Construct(config_t*);
+Gui* Gui_Construct(void);
 void Gui_Destruct(Gui**);
 
-// Public methods
-// Setters
-static void Gui_SetApp(Gui* const, GtkApplication*);
-static void Gui_SetUserData(Gui* const, gpointer);
 // Getters
-GtkApplication* Gui_GetApp(Gui* const);
-gpointer Gui_GetUserData(Gui* const);
 static char* Gui_GetName(Gui* const);
 
 // Private methods
-// Setters
 static void _Gui_SetName(Gui*, char*);
+
+
+// Static methods
 // Callback for exit button that calls dtor, called with swapped params
 static void Gui_Exit(gpointer, GtkWidget*);
-//static void Gui_RunChildThread(GtkWidget*, gpointer);
-static void Gui_JoinThread(GtkWidget*, gpointer);
-static void* _Gui_RunChildThread(GtkWidget*, gpointer);
-static void _Gui_GetText(GtkEntry*, gpointer);
 
 static void _Gui_DrawLoginInvitationScreen();
 static void _Gui_DrawMainScreen();
+static void _Gui_GetText(GtkEntry*, gpointer);
 static void _Gui_WantAuthenticate(GtkWidget*, gpointer);
+
+static void* _Gui_RunChildThread(GtkWidget*, gpointer);
+
 
 static void* thread_func(void*);
 

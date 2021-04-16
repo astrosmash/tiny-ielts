@@ -1,23 +1,22 @@
-// Global vars
-gui_runtime_config* my_app_config = NULL;
-static session_t session = { 0 };
-
-// Gui ctor & dtor
+// Gui ctor
 #define Gui_Init (*Gui_Construct)
 
+// Global vars
+GuiRuntimeConfig* my_app_config = NULL;
+static session_t session = { 0 };
 
 
-Gui* Gui_Construct(config_t* config)
+
+Gui* Gui_Construct(void)
 {
     Gui* g = malloc(sizeof(Gui));
     assert(g);
-    assert(config);
     memset(g, 0, sizeof(*g));
 
     _Gui_SetName(g, "myggtk_gui");
     debug(3, "allocated new object on %p\n", (void*)g);
 
-    my_app_config = malloc(sizeof(gui_runtime_config));
+    my_app_config = malloc(sizeof(GuiRuntimeConfig));
     assert(my_app_config);
     memset(my_app_config, 0, sizeof(*my_app_config));
 
@@ -35,7 +34,6 @@ Gui* Gui_Construct(config_t* config)
     gtk_container_set_border_width(GTK_CONTAINER(window), 10);
     g_signal_connect_swapped(window, "delete_event", G_CALLBACK(Gui_Exit), my_app_config);
 
-    my_app_config->my_config = config;
     my_app_config->my_gui = g;
     my_app_config->window = window;
 
@@ -61,34 +59,8 @@ void Gui_Destruct(Gui** g)
 
 
 // Public methods
-// Setters
-
-static void Gui_SetApp(Gui* const g, GtkApplication* app)
-{
-    g->app = app;
-}
-
-
-static void Gui_SetUserData(Gui* const g, gpointer user_data)
-{
-    g->user_data = user_data;
-}
-
 
 // Getters
-
-GtkApplication* Gui_GetApp(Gui* const g)
-{
-    return g->app;
-}
-
-
-gpointer Gui_GetUserData(Gui* const g)
-{
-    return g->user_data;
-}
-
-
 char* Gui_GetName(Gui* const g)
 {
     assert(g);
@@ -110,7 +82,7 @@ static void _Gui_SetName(Gui* g, char* name)
 static void Gui_Exit(gpointer data, GtkWidget* widget)
 {
     assert(data);
-    gui_runtime_config* g_config = data;
+    GuiRuntimeConfig* g_config = data;
     debug(3, "freeing %s\n", Gui_GetName(g_config->my_gui));
     Gui_Destruct(&g_config->my_gui);
     gtk_main_quit();
@@ -120,7 +92,7 @@ static void Gui_Exit(gpointer data, GtkWidget* widget)
 
 //static void Gui_RunChildThread(GtkWidget* widget, gpointer data)
 //{
-//    gui_runtime_config* g_config = data;
+//    GuiRuntimeConfig* g_config = data;
 //    GThread* thread = NULL;
 //
 //    thread = g_thread_new("worker", _Gui_RunChildThread, g_config);
@@ -135,7 +107,7 @@ static void Gui_Exit(gpointer data, GtkWidget* widget)
 static void Gui_JoinThread(GtkWidget* widget, gpointer data)
 {
     assert(data);
-    gui_runtime_config* g_config = data;
+    GuiRuntimeConfig* g_config = data;
     assert(g_config->child_thread);
     debug(3, "joining thread at %s\n", Gui_GetName(g_config->my_gui));
     void* res = NULL;
@@ -150,7 +122,7 @@ static void Gui_JoinThread(GtkWidget* widget, gpointer data)
 static void* thread_func(void* data)
 {
     assert(data);
-    gui_runtime_config* g_config = data;
+    GuiRuntimeConfig* g_config = data;
 
     debug(3, "Launched ok! %s\n", Gui_GetName(g_config->my_gui));
     debug(3, "passing board %s (cookie %s)\n", g_config->WorkerData.board, g_config->WorkerData.session.cookie);
@@ -233,7 +205,7 @@ static void* thread_func(void* data)
 static void* _Gui_RunChildThread(GtkWidget* widget, gpointer data)
 {
     assert(data);
-    gui_runtime_config* g_config = data;
+    GuiRuntimeConfig* g_config = data;
     assert(g_config->my_gui);
     Thread* my_thread = NULL;
 

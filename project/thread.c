@@ -1,4 +1,4 @@
-// Thread ctor & dtor
+// Thread ctor
 #define Thread_Init (*Thread_Construct)
 
 // Function location and args to it to run in the thread
