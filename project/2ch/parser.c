@@ -2,7 +2,7 @@
 // Populates allocated session struct with moder info and session cookie.
 static void dvach_populate_session(session_t* session, cJSON* parse_result)
 {
-    // All nullptr checks have been performed by callee
+    // All nullptr checks have been performed by caller
     const cJSON* current_val = NULL;
 
     const cJSON* board = NULL;
@@ -158,7 +158,7 @@ static void dvach_populate_session(session_t* session, cJSON* parse_result)
 // Populates allocated session struct with board info from catalog.
 static void dvach_populate_board(board_t* board, cJSON* parse_result)
 {
-    // All nullptr checks have been performed by callee
+    // All nullptr checks have been performed by caller
     const cJSON* current_val = NULL;
 
     const cJSON* name = NULL;

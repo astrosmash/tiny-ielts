@@ -139,7 +139,7 @@ extern board_t* fetch_board_info(session_t* session, const char* board_name)
     free(url);
     free(s.ptr);
     curl_easy_cleanup(curl);
-    return board;
+    return board; // to be freed by caller
 
 cleanup:
     free(board);
