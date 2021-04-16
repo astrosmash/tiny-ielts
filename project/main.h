@@ -26,11 +26,19 @@
 #endif
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
-#define debug(fmt, ...)                                                                       \
+
+// Inclusive logging output
+// 1: (real) errors
+// 2: warnings about possibly not implemented data fields
+// 3: verbose info about parsed fields / configurations that were set
+// 4: iteration numbers and info about current location in nested loops
+// 5: full trace of received content
+#define debug(lvl, fmt, ...)                                                                       \
     do {                                                                                      \
-        if (DEBUG)                                                                            \
+        if (DEBUG && DEBUG_LEVEL >= lvl)                                                                            \
             fprintf(stderr, "\n%s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, __VA_ARGS__); \
     } while (0)
+
 
 #include "2ch.h"
 #include "config.h"

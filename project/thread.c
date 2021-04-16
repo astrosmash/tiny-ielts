@@ -12,7 +12,7 @@ Thread* Thread_Construct(void* (*func_addr)(void*), void* func_arg)
 
     _Thread_SetName(t, "myggtk_thread");
     Thread_SetNum(t, 77);
-    debug("allocated new object on %p\n", (void*)t);
+    debug(3, "allocated new object on %p\n", (void*)t);
 
     ssize_t op_status = 0;
     op_status = pthread_attr_init(&t->attr);
@@ -30,7 +30,7 @@ Thread* Thread_Construct(void* (*func_addr)(void*), void* func_arg)
 void Thread_Destruct(Thread** t)
 {
     assert(*t);
-    debug("freed object on %p\n", (void*)*t);
+    debug(3, "freed object on %p\n", (void*)*t);
     free(*t);
     *t = NULL;
 }
@@ -78,7 +78,7 @@ char* Thread_GetName(Thread* const t)
 
 ssize_t Thread_Join(Thread* const t, void* res)
 {
-    debug("joining %s\n", Thread_GetName(t));
+    debug(3, "joining %s\n", Thread_GetName(t));
     return pthread_join(Thread_GetId(t), res);
 }
 

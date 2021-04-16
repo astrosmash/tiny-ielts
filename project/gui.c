@@ -14,7 +14,7 @@ Gui* Gui_Construct(config_t* config)
     memset(g, 0, sizeof(*g));
 
     _Gui_SetName(g, "myggtk_gui");
-    debug("allocated new object on %p\n", (void*)g);
+    debug(3, "allocated new object on %p\n", (void*)g);
 
     my_app_config = malloc(sizeof(gui_runtime_config));
     assert(my_app_config);
@@ -53,7 +53,7 @@ Gui* Gui_Construct(config_t* config)
 void Gui_Destruct(Gui** g)
 {
     assert(*g);
-    debug("freed object on %p\n", (void*)*g);
+    debug(3, "freed object on %p\n", (void*)*g);
     free(*g);
     *g = NULL;
 }
@@ -110,7 +110,7 @@ static void Gui_Exit(gpointer data, GtkWidget* widget)
 {
     assert(data);
     gui_runtime_config* g_config = data;
-    debug("freeing %s\n", Gui_GetName(g_config->my_gui));
+    debug(3, "freeing %s\n", Gui_GetName(g_config->my_gui));
     Gui_Destruct(&g_config->my_gui);
     gtk_main_quit();
 }
@@ -134,11 +134,11 @@ static void Gui_JoinThread(GtkWidget* widget, gpointer data)
     assert(data);
     gui_runtime_config* g_config = data;
     assert(g_config->child_thread);
-    debug("joining thread at %s\n", Gui_GetName(g_config->my_gui));
+    debug(3, "joining thread at %s\n", Gui_GetName(g_config->my_gui));
     void* res = NULL;
 
     if (Thread_Join(g_config->child_thread, &res) == 0) {
-        debug("thread joined ok res %s\n", (char*)res);
+        debug(3, "thread joined ok res %s\n", (char*)res);
     }
 }
 
@@ -148,8 +148,8 @@ static void* thread_func(void* data)
     assert(data);
     gui_runtime_config* g_config = data;
 
-    debug("Launched ok! %s\n", Gui_GetName(g_config->my_gui));
-    debug("passing board %s (cookie %s)\n", g_config->WorkerData.board, g_config->WorkerData.session.cookie);
+    debug(3, "Launched ok! %s\n", Gui_GetName(g_config->my_gui));
+    debug(3, "passing board %s (cookie %s)\n", g_config->WorkerData.board, g_config->WorkerData.session.cookie);
 
     board_t* board = fetch_board_info(&g_config->WorkerData.session, g_config->WorkerData.board);
     assert(board);
@@ -199,7 +199,7 @@ static void* thread_func(void* data)
         char* thread_date = board->thread[i].date;
 
         if (strlen(thread_subject)) {
-            debug("Adding view for (%zu) %s/%zu\n", i, thread_subject, thread_num);
+            debug(3, "Adding view for (%zu) %s/%zu\n", i, thread_subject, thread_num);
 
             label = gtk_label_new(thread_subject);
             assert(label);
@@ -233,15 +233,15 @@ static void* _Gui_RunChildThread(GtkWidget* widget, gpointer data)
     Thread* my_thread = NULL;
 
     const gchar* board_name = gtk_widget_get_name(GTK_WIDGET(widget));
-    debug("processing board %s\n", board_name);
+    debug(3, "processing board %s\n", board_name);
 
     memset(&g_config->WorkerData.board, 0, MAX_BOARD_NAME_LENGTH);
     strncpy(g_config->WorkerData.board, board_name, strlen(board_name));
     g_config->WorkerData.session = session;
-    debug("passing %s(%s)\n", g_config->WorkerData.board, g_config->WorkerData.session.cookie);
+    debug(3, "passing %s(%s)\n", g_config->WorkerData.board, g_config->WorkerData.session.cookie);
 
     if (((my_thread = Thread_Init(&thread_func, g_config)) == NULL)) {
-        debug("cannot launch thread_func! %s\n", Gui_GetName(g_config->my_gui));
+        debug(1, "cannot launch thread_func! %s\n", Gui_GetName(g_config->my_gui));
     }
     g_config->child_thread = my_thread;
     //    do_network(my_config, 0);
@@ -265,7 +265,7 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
         if (text_type == Username) {
             // Make sure no overflow occurs
             assert(text_len < MAX_CRED_LENGTH);
-            debug("read username %s\n", text);
+            debug(3, "read username %s\n", text);
             g_print("%s \n", text);
 
             if (strlen(creds.username)) {
@@ -276,7 +276,7 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
         } else if (text_type == Password) {
             // Make sure no overflow occurs
             assert(text_len < MAX_CRED_LENGTH);
-            debug("read password %s\n", text);
+            debug(3, "read password %s\n", text);
             g_print("%s \n", text);
 
             if (strlen(creds.password)) {
@@ -285,12 +285,12 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
 
             strncpy(creds.password, text, text_len);
         } else {
-            debug("text_type unknown %zu, doing nothing\n", text_type);
+            debug(2, "text_type unknown %zu, doing nothing\n", text_type);
         }
 
         if (strlen(session.cookie) == 0) {
             if (strlen(creds.username) && strlen(creds.password)) {
-                debug("triggering session_init with user %s pass %s\n", creds.username, creds.password);
+                debug(3, "triggering session_init with user %s pass %s\n", creds.username, creds.password);
 
                 size_t allowed = 0;
                 for (size_t i = 0; i < ARRAY_SIZE(client_whitelisted_users); i++) {
@@ -299,13 +299,13 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
                     }
                 }
                 if (!allowed) {
-                    debug("you are not whitelisted to use this client! %s", creds.username);
+                    debug(1, "you are not whitelisted to use this client! %s", creds.username);
                     return;
                 }
 
                 ssize_t session_res = 0;
                 if ((session_res = session_init(&creds, &session))) {
-                    debug("was not able to trigger session_init with user %s pass %s (%zd)\n", creds.username, creds.password, session_res);
+                    debug(1, "was not able to trigger session_init with user %s pass %s (%zd)\n", creds.username, creds.password, session_res);
                     return;
                 }
 
@@ -316,7 +316,7 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
                 }
 
                 assert(homedir);
-                debug("homedir is %s\n", homedir);
+                debug(3, "homedir is %s\n", homedir);
 
                 const char* dvach_account_file = "/.mod2ch/.creds";
 
@@ -329,13 +329,13 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
                 strncpy(fullpath, homedir, strlen(homedir));
 
                 strncat(fullpath, dvach_account_file, strlen(dvach_account_file));
-                debug("writing credentials to %s\n", fullpath);
+                debug(3, "writing credentials to %s\n", fullpath);
 
                 const char* mode = "w";
                 FILE* file = NULL;
 
                 if ((file = fopen(fullpath, mode)) == NULL) {
-                    debug("fopen(%s) cannot open file\n", fullpath);
+                    debug(1, "fopen(%s) cannot open file\n", fullpath);
                     return;
                 }
 
@@ -357,7 +357,7 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
 
                 size_t ret = fwrite(content, sizeof(char), strlen(content), file);
                 if (!ret) {
-                    debug("fwrite(%s) cannot write to file\n", fullpath);
+                    debug(1, "fwrite(%s) cannot write to file\n", fullpath);
                     return;
                 }
 
@@ -369,7 +369,7 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
                 gtk_widget_show_all(my_app_config->window);
             }
         } else {
-            debug("will not trigger session_init - have session present cookie %s user %s pass %s. Just re-launch an app to relogin\n", session.cookie, session.creds->username, session.creds->password);
+            debug(4, "will not trigger session_init - have session present cookie %s user %s pass %s. Just re-launch an app to relogin\n", session.cookie, session.creds->username, session.creds->password);
         }
     }
 }
@@ -425,7 +425,7 @@ static void _Gui_DrawMainScreen()
         }
 
         assert(homedir);
-        debug("homedir is %s\n", homedir);
+        debug(3, "homedir is %s\n", homedir);
 
         const char* dvach_account_file = "/.mod2ch/.creds";
 
@@ -438,13 +438,13 @@ static void _Gui_DrawMainScreen()
         strncpy(fullpath, homedir, strlen(homedir));
 
         strncat(fullpath, dvach_account_file, strlen(dvach_account_file));
-        debug("reading credentials from %s\n", fullpath);
+        debug(3, "reading credentials from %s\n", fullpath);
 
         const char* opmode = "r";
         FILE* file = NULL;
 
         if ((file = fopen(fullpath, opmode)) == NULL) {
-            debug("fopen(%s) no file\n", fullpath);
+            debug(3, "fopen(%s) no file\n", fullpath);
         }
 
         size_t buf_size = 1024; // FIXME: will overflow on large file
@@ -458,7 +458,7 @@ static void _Gui_DrawMainScreen()
 
         size_t ret = fread(buf, sizeof(char), buf_size, file);
         fclose(file);
-        debug("fread(%s) %zu bytes\n", fullpath, ret);
+        debug(4, "fread(%s) %zu bytes\n", fullpath, ret);
         if (!ret)
             return; // no content was read in file
 
@@ -466,13 +466,13 @@ static void _Gui_DrawMainScreen()
         char* line = strtok_r(buf, "\n", &strtok_saveptr);
         while (line != NULL) {
             if (sscanf(line, "cookie = %99s\n", session.cookie) == 1) { // read no more than 99 bytes
-                debug("scanned cookie %s\n", session.cookie);
+                debug(3, "scanned cookie %s\n", session.cookie);
             }
             // No need to scan creds (user/pass) -- creds struct was not allocated!!
 
             for (size_t i = 0; i <= MAX_NUM_OF_BOARDS; ++i) {
                 if (!strlen(session.moder.boards[i]) && sscanf(line, "board = %25s\n", session.moder.boards[i]) == 1) {
-                    debug("scanned board %s\n", session.moder.boards[i]);
+                    debug(3, "scanned board %s\n", session.moder.boards[i]);
                     break;
                 }
             }
@@ -480,14 +480,14 @@ static void _Gui_DrawMainScreen()
             line = strtok_r(NULL, "\n", &strtok_saveptr);
         }
 
-        debug("populated credentials cookie: %s\n", session.cookie);
+        debug(3, "populated credentials cookie: %s\n", session.cookie);
         free(buf);
     }
 
     for (size_t i = 0; i < sizeof(session.moder.boards) / sizeof(*session.moder.boards); ++i) {
         char* board_name = session.moder.boards[i];
         if (strlen(board_name)) {
-            debug("Adding button for (%zu) %s", i, (char*)session.moder.boards + (MAX_BOARD_NAME_LENGTH * i));
+            debug(3, "Adding button for (%zu) %s", i, (char*)session.moder.boards + (MAX_BOARD_NAME_LENGTH * i));
 
             button = gtk_button_new_with_label(board_name);
             assert(button);

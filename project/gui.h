@@ -1,6 +1,3 @@
-// Include debug output for Gui and Thread objects
-#define DEBUG 1
-
 #include "thread.h"
 
 // class Gui

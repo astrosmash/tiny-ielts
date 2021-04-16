@@ -1,5 +1,6 @@
 // Include debug output
 #define DEBUG 1
+#define DEBUG_LEVEL 2
 
 #define MAX_ARBITRARY_CHAR_LENGTH 512
 #define MAX_BOARD_NAME_LENGTH 10

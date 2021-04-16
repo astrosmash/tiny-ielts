@@ -7,7 +7,7 @@ extern const char* get_homedir(void)
     }
 
     assert(homedir);
-    debug("Determined ${HOME} to be %s\n", homedir);
+    debug(3, "Determined ${HOME} to be %s\n", homedir);
 
     return homedir;
 }
@@ -30,19 +30,19 @@ extern bool local_credentials_file_present(void)
     strncpy(fullpath, homedir, strlen(homedir));
     strncat(fullpath, account_subdir, strlen(account_subdir));
 
-    debug("Determined credentials directory to be %s\n", fullpath);
+    debug(3, "Determined credentials directory to be %s\n", fullpath);
 
     struct stat stat_buf = { 0 };
     if ((res = stat(fullpath, &stat_buf))) {
-        debug("Cannot access credentials directory %s (%s)\n", fullpath, strerror(errno));
+        debug(4, "Cannot access credentials directory %s (%s)\n", fullpath, strerror(errno));
         credentials_present = false;
 
         if ((stat_buf.st_mode & S_IFMT) != S_IFDIR) {
-            debug("%s is not a directory, will try to create...\n", fullpath);
+            debug(4, "%s is not a directory, will try to create...\n", fullpath);
         }
 
         if ((res = mkdir(fullpath, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH))) {
-            debug("Cannot create credentials directory %s (%s)\n", fullpath, strerror(errno));
+            debug(1, "Cannot create credentials directory %s (%s)\n", fullpath, strerror(errno));
             free(fullpath);
             credentials_present = false;
             return credentials_present;
@@ -50,18 +50,18 @@ extern bool local_credentials_file_present(void)
     }
 
     strncat(fullpath, account_file, strlen(account_file));
-    debug("Determined credentials file to be %s\n", fullpath);
+    debug(3, "Determined credentials file to be %s\n", fullpath);
 
     if ((res = stat(fullpath, &stat_buf))) {
-        debug("Cannot access credentials file %s (%s)\n", fullpath, strerror(errno));
+        debug(4, "Cannot access credentials file %s (%s)\n", fullpath, strerror(errno));
         credentials_present = false;
 
         if ((stat_buf.st_mode & S_IFMT) != S_IFREG) {
-            debug("%s is not a file, will try to create...\n", fullpath);
+            debug(4, "%s is not a file, will try to create...\n", fullpath);
         }
 
         if ((res = open(fullpath, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR)) == -1) {
-            debug("Cannot create credentials file %s (%s)\n", fullpath, strerror(errno));
+            debug(1, "Cannot create credentials file %s (%s)\n", fullpath, strerror(errno));
             free(fullpath);
             credentials_present = false;
             return credentials_present;
@@ -110,14 +110,14 @@ static CURL* dvach_curl_init(struct curl_string* s, const char* cookie)
     assert(user_agent);
 
     snprintf(user_agent, MAX_CRED_LENGTH - 2, "User-Agent: 2ch-mod/%f", 0.1);
-    debug("Will use %s\n", user_agent);
+    debug(3, "Will use %s\n", user_agent);
 
     headers = curl_slist_append(headers, user_agent);
     assert(headers);
 
     if (cookie) {
         headers = curl_slist_append(headers, cookie);
-        debug("Will use %s\n", cookie);
+        debug(3, "Will use %s\n", cookie);
     }
 
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
@@ -141,12 +141,12 @@ extern ssize_t session_init(session_creds_t* creds, session_t* session)
     ssize_t func_res = EXIT_FAILURE;
 
     if (!snprintf(postfields, (MAX_CRED_LENGTH * 5) - 2, "use_cookie=1&nick=%s&password=%s", creds->username, creds->password)) {
-        debug("Unable to populate postfields with credentials %s %s\n", creds->username, creds->password);
+        debug(1, "Unable to populate postfields with credentials %s %s\n", creds->username, creds->password);
         free(postfields);
         return func_res;
     }
 
-    debug("Populated postfields %s\n", postfields);
+    debug(3, "Populated postfields %s\n", postfields);
 
     struct curl_string s = { .len = 0 };
     s.ptr = malloc(s.len + 1);
@@ -160,7 +160,7 @@ extern ssize_t session_init(session_creds_t* creds, session_t* session)
 
     CURLcode res = curl_easy_perform(curl);
     if (res != CURLE_OK) {
-        debug("Got curl_easy_perform err %s\n", curl_easy_strerror(res));
+        debug(1, "Got curl_easy_perform err %s\n", curl_easy_strerror(res));
         goto cleanup;
     }
 
@@ -168,19 +168,19 @@ extern ssize_t session_init(session_creds_t* creds, session_t* session)
 
     res = curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
     if (res != CURLE_OK) {
-        debug("Got curl_easy_getinfo err %s\n", curl_easy_strerror(res));
+        debug(1, "Got curl_easy_getinfo err %s\n", curl_easy_strerror(res));
         goto cleanup;
     }
 
     if (response_code == 200) {
-        debug("CURL result %s\n", s.ptr);
+        debug(3, "CURL result %s\n", s.ptr);
 
         cJSON* parse_result = NULL;
         if ((parse_result = cJSON_Parse(s.ptr)) == NULL) {
 
             const char* cjson_err = cJSON_GetErrorPtr();
             if (cjson_err) {
-                debug("cJSON err: %s", cjson_err);
+                debug(1, "cJSON err: %s", cjson_err);
             }
             cJSON_Delete(parse_result); // cjson checks for nullptr here
             goto cleanup;
@@ -191,7 +191,7 @@ extern ssize_t session_init(session_creds_t* creds, session_t* session)
 
         cJSON_Delete(parse_result); // cjson checks for nullptr here
     } else {
-        debug("CURL got http error code %zu result %s\n", response_code, s.ptr);
+        debug(1, "CURL got http error code %zu result %s\n", response_code, s.ptr);
         goto cleanup;
     }
 
@@ -234,7 +234,7 @@ extern board_t* fetch_board_info(session_t* session, const char* board_name)
     CURL* curl = dvach_curl_init(&s, cookie);
 
     if (!snprintf(url, MAX_CRED_LENGTH - 2, "https://2ch.hk/%s/catalog.json", board_name)) {
-        debug("Cannot assemble URL https://2ch.hk/%s/catalog.json", board_name);
+        debug(1, "Cannot assemble URL https://2ch.hk/%s/catalog.json", board_name);
         goto cleanup;
     }
 
@@ -243,7 +243,7 @@ extern board_t* fetch_board_info(session_t* session, const char* board_name)
     CURLcode res = curl_easy_perform(curl);
 
     if (res != CURLE_OK) {
-        debug("Got curl_easy_perform err %s\n", curl_easy_strerror(res));
+        debug(1, "Got curl_easy_perform err %s\n", curl_easy_strerror(res));
         goto cleanup;
     }
 
@@ -251,19 +251,19 @@ extern board_t* fetch_board_info(session_t* session, const char* board_name)
 
     res = curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
     if (res != CURLE_OK) {
-        debug("Got curl_easy_getinfo err %s\n", curl_easy_strerror(res));
+        debug(1, "Got curl_easy_getinfo err %s\n", curl_easy_strerror(res));
         goto cleanup;
     }
 
     if (response_code == 200) {
-        debug("%s CURL result %s\n", url, s.ptr);
+        debug(3, "%s CURL result %s\n", url, s.ptr);
 
         cJSON* parse_result = NULL;
         if ((parse_result = cJSON_Parse(s.ptr)) == NULL) {
 
             const char* cjson_err = cJSON_GetErrorPtr();
             if (cjson_err) {
-                debug("cJSON err: %s", cjson_err);
+                debug(1, "cJSON err: %s", cjson_err);
             }
             cJSON_Delete(parse_result); // cjson checks for nullptr here
             goto cleanup;
@@ -273,7 +273,7 @@ extern board_t* fetch_board_info(session_t* session, const char* board_name)
 
         cJSON_Delete(parse_result); // cjson checks for nullptr here
     } else {
-        debug("CURL got http error code %zu result %s\n", response_code, s.ptr);
+        debug(1, "CURL got HTTP error code %zu result %s\n", response_code, s.ptr);
         goto cleanup;
     }
 
@@ -301,9 +301,8 @@ cleanup:
 //
 //extern file_t* fetch_file_from_post(session_t* session, post_t* post) {}
 
-// Function to populate allocated data structures
+// Functions to populate allocated data structures
 // Populates allocated session struct with moder info and session cookie.
-
 static void dvach_popupate_session(session_t* session, cJSON* parse_result)
 {
     // All nullptr checks have been performed by callee
@@ -319,14 +318,14 @@ static void dvach_popupate_session(session_t* session, cJSON* parse_result)
     if (cJSON_IsString(cookie) && cookie->valuestring) {
         assert(strlen(cookie->valuestring) < MAX_ARBITRARY_CHAR_LENGTH);
         memcpy(&session->cookie, cookie->valuestring, strlen(cookie->valuestring));
-        debug("Populated cookie %s", session->cookie);
+        debug(3, "Populated cookie %s", session->cookie);
     }
 
     telegram_key = cJSON_GetObjectItemCaseSensitive(parse_result, "telegram_key");
     if (cJSON_IsString(telegram_key) && telegram_key->valuestring) {
         assert(strlen(telegram_key->valuestring) < MAX_ARBITRARY_CHAR_LENGTH);
         memcpy(&session->telegram_key, telegram_key->valuestring, strlen(telegram_key->valuestring));
-        debug("Populated telegram_key %s", session->telegram_key);
+        debug(3, "Populated telegram_key %s", session->telegram_key);
     }
 
     mod = cJSON_GetObjectItemCaseSensitive(parse_result, "moder");
@@ -338,49 +337,49 @@ static void dvach_popupate_session(session_t* session, cJSON* parse_result)
             const char* current_key = current_val->string;
 
             if (current_key) {
-                debug("Processing %s\n", current_key);
-                // const char* trace = cJSON_Print(current_val);
-                // debug("%s\n", trace);
+                debug(4, "Processing %s\n", current_key);
+                const char* trace = cJSON_Print(current_val);
+                debug(5, "%s\n", trace);
 
                 // Start comparing keys
                 if (strcmp(current_key, "Num") == 0) {
                     if (cJSON_IsNumber(current_val) && current_val->valueint) {
                         session->moder.num = current_val->valueint;
-                        debug("Populated Num %zu", session->moder.num);
+                        debug(3, "Populated Num %zu", session->moder.num);
                     }
                 } else if (strcmp(current_key, "Nick") == 0) {
                     if (cJSON_IsString(current_val) && current_val->valuestring) {
                         assert(strlen(current_val->valuestring) < MAX_CRED_LENGTH);
                         memcpy(&session->moder.nick, current_val->valuestring, strlen(current_val->valuestring));
-                        debug("Populated Nick %s", session->moder.nick);
+                        debug(3, "Populated Nick %s", session->moder.nick);
                     }
                 } else if (strcmp(current_key, "Level") == 0) {
                     if (cJSON_IsNumber(current_val) && current_val->valueint) {
                         session->moder.level = current_val->valueint;
-                        debug("Populated Level %zu", session->moder.level);
+                        debug(3, "Populated Level %zu", session->moder.level);
                     }
                 } else if (strcmp(current_key, "RequestMessage") == 0) {
                     if (cJSON_IsString(current_val) && current_val->valuestring) {
                         assert(strlen(current_val->valuestring) < MAX_ARBITRARY_CHAR_LENGTH);
                         memcpy(&session->moder.request_message, current_val->valuestring, strlen(current_val->valuestring));
-                        debug("Populated RequestMessage %s", session->moder.request_message);
+                        debug(3, "Populated RequestMessage %s", session->moder.request_message);
                     }
                 } else if (strcmp(current_key, "Email") == 0) {
                     if (cJSON_IsString(current_val) && current_val->valuestring) {
                         assert(strlen(current_val->valuestring) < MAX_ARBITRARY_CHAR_LENGTH);
                         memcpy(&session->moder.email, current_val->valuestring, strlen(current_val->valuestring));
-                        debug("Populated Email %s", session->moder.email);
+                        debug(3, "Populated Email %s", session->moder.email);
                     }
                 } else if (strcmp(current_key, "TelegramID") == 0) {
                     if (cJSON_IsNumber(current_val) && current_val->valueint) {
                         session->moder.telegram_id = current_val->valueint;
-                        debug("Populated TelegramID %zu", session->moder.telegram_id);
+                        debug(3, "Populated TelegramID %zu", session->moder.telegram_id);
                     }
                 } else if (strcmp(current_key, "TelegramUsername") == 0) {
                     if (cJSON_IsString(current_val) && current_val->valuestring) {
                         assert(strlen(current_val->valuestring) < MAX_ARBITRARY_CHAR_LENGTH);
                         memcpy(&session->moder.telegram_username, current_val->valuestring, strlen(current_val->valuestring));
-                        debug("Populated TelegramUsername %s", session->moder.telegram_username);
+                        debug(3, "Populated TelegramUsername %s", session->moder.telegram_username);
                     }
                 } else if (strcmp(current_key, "Jids") == 0) {
                     if (cJSON_IsArray(current_val)) {
@@ -398,7 +397,7 @@ static void dvach_popupate_session(session_t* session, cJSON* parse_result)
                                 const char null = '\0'; // add null terminator
                                 memcpy(&session->moder.jids[curr_iteration] + strlen(jid->valuestring), &null, 1);
 
-                                debug("Populated Jid #%zu (%zu) %s", curr_iteration, curr_arr_element, (char*)session->moder.jids + curr_arr_element);
+                                debug(3, "Populated Jid #%zu (%zu) %s", curr_iteration, curr_arr_element, (char*)session->moder.jids + curr_arr_element);
                                 ++curr_iteration;
                             }
                         }
@@ -407,7 +406,7 @@ static void dvach_popupate_session(session_t* session, cJSON* parse_result)
                     if (cJSON_IsString(current_val) && current_val->valuestring) {
                         assert(strlen(current_val->valuestring) < MAX_ARBITRARY_CHAR_LENGTH);
                         memcpy(&session->moder.comment, current_val->valuestring, strlen(current_val->valuestring));
-                        debug("Populated Comment %s", session->moder.comment);
+                        debug(3, "Populated Comment %s", session->moder.comment);
                     }
                 } else if (strcmp(current_key, "Boards") == 0) {
                     if (cJSON_IsArray(current_val)) {
@@ -425,7 +424,7 @@ static void dvach_popupate_session(session_t* session, cJSON* parse_result)
                                 const char null = '\0'; // add null terminator
                                 memcpy(&session->moder.boards[curr_iteration] + strlen(board->valuestring), &null, 1);
 
-                                debug("Populated Board #%zu (%zu) %s", curr_iteration, curr_arr_element, (char*)session->moder.boards + curr_arr_element);
+                                debug(3, "Populated Board #%zu (%zu) %s", curr_iteration, curr_arr_element, (char*)session->moder.boards + curr_arr_element);
                                 ++curr_iteration;
                             }
                         }
@@ -437,30 +436,29 @@ static void dvach_popupate_session(session_t* session, cJSON* parse_result)
                             session->moder.public_log = true;
                         } else if (cJSON_IsFalse(current_val)) {
                         } else {
-                            debug("Got unknown PublicLog %s", cJSON_Print(current_val));
+                            debug(2, "Got unknown PublicLog %s", cJSON_Print(current_val));
                         }
-                        debug("Populated PublicLog %u", session->moder.public_log);
+                        debug(3, "Populated PublicLog %u", session->moder.public_log);
                     }
                 } else if (strcmp(current_key, "LastLogin") == 0) {
                     if (cJSON_IsNumber(current_val) && current_val->valueint) {
                         session->moder.last_login = current_val->valueint;
-                        debug("Populated LastLogin %zu", session->moder.last_login);
+                        debug(3, "Populated LastLogin %zu", session->moder.last_login);
                     }
                 } else if (strcmp(current_key, "LastAction") == 0) {
                     if (cJSON_IsNumber(current_val) && current_val->valueint) {
                         session->moder.last_action = current_val->valueint;
-                        debug("Populated LastAction %zu", session->moder.last_action);
+                        debug(3, "Populated LastAction %zu", session->moder.last_action);
                     }
                 } else {
-                    debug("Got unknown key while iterating %s", current_key);
+                    debug(2, "Got unknown key while iterating %s", current_key);
                 }
             }
         }
     }
 }
 
-// Populates allocated session struct with board info from catalogue.
-
+// Populates allocated session struct with board info from catalog.
 static void dvach_popupate_board(board_t* board, cJSON* parse_result)
 {
     // All nullptr checks have been performed by callee
@@ -478,20 +476,20 @@ static void dvach_popupate_board(board_t* board, cJSON* parse_result)
     if (cJSON_IsString(name) && name->valuestring) {
         assert(strlen(name->valuestring) < MAX_BOARD_NAME_LENGTH);
         memcpy(&board->name, name->valuestring, strlen(name->valuestring));
-        debug("Populated board name %s", board->name);
+        debug(3, "Populated board name %s", board->name);
     }
 
     verbose_name = cJSON_GetObjectItemCaseSensitive(parse_result, "BoardName");
     if (cJSON_IsString(verbose_name) && verbose_name->valuestring) {
         assert(strlen(verbose_name->valuestring) < MAX_ARBITRARY_CHAR_LENGTH);
         memcpy(&board->verbose_name, verbose_name->valuestring, strlen(verbose_name->valuestring));
-        debug("Populated board verbose_name %s", board->verbose_name);
+        debug(3, "Populated board verbose_name %s", board->verbose_name);
     }
 
     bump_limit = cJSON_GetObjectItemCaseSensitive(parse_result, "bump_limit");
     if (cJSON_IsNumber(bump_limit) && bump_limit->valueint) {
         board->bump_limit = bump_limit->valueint;
-        debug("Populated board bumplimit %zu", board->bump_limit);
+        debug(3, "Populated board bumplimit %zu", board->bump_limit);
     }
 
     threads = cJSON_GetObjectItemCaseSensitive(parse_result, "threads");
@@ -508,9 +506,9 @@ static void dvach_popupate_board(board_t* board, cJSON* parse_result)
                     const char* current_key = current_val->string;
 
                     if (current_key) {
-                        // debug("Processing %s[%zu]\n", current_key, curr_iteration);
-                        // char* trace = cJSON_Print(current_val);
-                        // debug("%s\n", trace);
+                        debug(4, "Processing %s[%zu]\n", current_key, curr_iteration);
+                        char* trace = cJSON_Print(current_val);
+                        debug(5, "%s\n", trace);
 
                         assert(curr_iteration < MAX_NUM_OF_THREADS);
 
@@ -519,30 +517,30 @@ static void dvach_popupate_board(board_t* board, cJSON* parse_result)
                         if (strcmp(current_key, "banned") == 0) {
                             if (cJSON_IsNumber(current_val) && current_val->valueint) {
                                 board->thread[curr_iteration].banned = current_val->valueint ? true : false;
-                                debug("Got banned %u", board->thread[curr_iteration].banned);
+                                debug(3, "Got banned %u", board->thread[curr_iteration].banned);
                             }
                         } else if (strcmp(current_key, "closed") == 0) {
                             if (cJSON_IsNumber(current_val) && current_val->valueint) {
                                 board->thread[curr_iteration].closed = current_val->valueint ? true : false;
-                                debug("Got closed %u", board->thread[curr_iteration].closed);
+                                debug(3, "Got closed %u", board->thread[curr_iteration].closed);
                             }
                         } else if (strcmp(current_key, "comment") == 0) {
                             if (cJSON_IsString(current_val) && current_val->valuestring) {
                                 assert(strlen(current_val->valuestring) < 90 * MAX_ARBITRARY_CHAR_LENGTH);
                                 memcpy(&board->thread[curr_iteration].comment, current_val->valuestring, strlen(current_val->valuestring));
-                                debug("Got comment %s", board->thread[curr_iteration].comment);
+                                debug(3, "Got comment %s", board->thread[curr_iteration].comment);
                             }
                         } else if (strcmp(current_key, "date") == 0) {
                             if (cJSON_IsString(current_val) && current_val->valuestring) {
                                 assert(strlen(current_val->valuestring) < MAX_ARBITRARY_CHAR_LENGTH);
                                 memcpy(&board->thread[curr_iteration].date, current_val->valuestring, strlen(current_val->valuestring));
-                                debug("Got date %s", board->thread[curr_iteration].date);
+                                debug(3, "Got date %s", board->thread[curr_iteration].date);
                             }
                         } else if (strcmp(current_key, "email") == 0) {
                             if (cJSON_IsString(current_val) && current_val->valuestring) {
                                 assert(strlen(current_val->valuestring) < MAX_ARBITRARY_CHAR_LENGTH);
                                 memcpy(&board->thread[curr_iteration].email, current_val->valuestring, strlen(current_val->valuestring));
-                                debug("Got email %s", board->thread[curr_iteration].email);
+                                debug(3, "Got email %s", board->thread[curr_iteration].email);
                             }
                         } else if (strcmp(current_key, "files") == 0) {
                             if (cJSON_IsArray(current_val)) {
@@ -550,7 +548,7 @@ static void dvach_popupate_board(board_t* board, cJSON* parse_result)
 
                                 cJSON_ArrayForEach(file_obj, current_val)
                                 {
-                                    // debug("Processing file array for %zu[%zu]\n", curr_iteration, file_curr_iteration);
+                                    debug(4, "Processing file array for %zu[%zu]\n", curr_iteration, file_curr_iteration);
                                     if (cJSON_IsObject(file_obj)) {
 
                                         cJSON_ArrayForEach(file, file_obj)
@@ -567,75 +565,75 @@ static void dvach_popupate_board(board_t* board, cJSON* parse_result)
                                                     if (cJSON_IsString(file) && file->valuestring) {
                                                         assert(strlen(file->valuestring) < MAX_ARBITRARY_CHAR_LENGTH);
                                                         memcpy(&board->thread[curr_iteration].file[file_curr_iteration].path, file->valuestring, strlen(file->valuestring));
-                                                        debug("Got file path %s\n", board->thread[curr_iteration].file[file_curr_iteration].path);
+                                                        debug(3, "Got file path %s\n", board->thread[curr_iteration].file[file_curr_iteration].path);
                                                     }
                                                 } else if (strcmp(file_current_key, "displayname") == 0) {
                                                     if (cJSON_IsString(file) && file->valuestring) {
                                                         assert(strlen(file->valuestring) < MAX_ARBITRARY_CHAR_LENGTH);
                                                         memcpy(&board->thread[curr_iteration].file[file_curr_iteration].displayname, file->valuestring, strlen(file->valuestring));
-                                                        debug("Got file displayname %s\n", board->thread[curr_iteration].file[file_curr_iteration].displayname);
+                                                        debug(3, "Got file displayname %s\n", board->thread[curr_iteration].file[file_curr_iteration].displayname);
                                                     }
                                                 } else if (strcmp(file_current_key, "fullname") == 0) {
                                                     if (cJSON_IsString(file) && file->valuestring) {
                                                         assert(strlen(file->valuestring) < MAX_ARBITRARY_CHAR_LENGTH);
                                                         memcpy(&board->thread[curr_iteration].file[file_curr_iteration].fullname, file->valuestring, strlen(file->valuestring));
-                                                        debug("Got file fullname %s\n", board->thread[curr_iteration].file[file_curr_iteration].fullname);
+                                                        debug(3, "Got file fullname %s\n", board->thread[curr_iteration].file[file_curr_iteration].fullname);
                                                     }
                                                 } else if (strcmp(file_current_key, "md5") == 0) {
                                                     if (cJSON_IsString(file) && file->valuestring) {
                                                         assert(strlen(file->valuestring) < MAX_ARBITRARY_CHAR_LENGTH);
                                                         memcpy(&board->thread[curr_iteration].file[file_curr_iteration].md5, file->valuestring, strlen(file->valuestring));
-                                                        debug("Got file md5 %s\n", board->thread[curr_iteration].file[file_curr_iteration].md5);
+                                                        debug(3, "Got file md5 %s\n", board->thread[curr_iteration].file[file_curr_iteration].md5);
                                                     }
                                                 } else if (strcmp(file_current_key, "name") == 0) {
                                                     if (cJSON_IsString(file) && file->valuestring) {
                                                         assert(strlen(file->valuestring) < MAX_ARBITRARY_CHAR_LENGTH);
                                                         memcpy(&board->thread[curr_iteration].file[file_curr_iteration].name, file->valuestring, strlen(file->valuestring));
-                                                        debug("Got file name %s\n", board->thread[curr_iteration].file[file_curr_iteration].name);
+                                                        debug(3, "Got file name %s\n", board->thread[curr_iteration].file[file_curr_iteration].name);
                                                     }
                                                 } else if (strcmp(file_current_key, "thumbnail") == 0) {
                                                     if (cJSON_IsString(file) && file->valuestring) {
                                                         assert(strlen(file->valuestring) < MAX_ARBITRARY_CHAR_LENGTH);
                                                         memcpy(&board->thread[curr_iteration].file[file_curr_iteration].thumbnail, file->valuestring, strlen(file->valuestring));
-                                                        debug("Got file thumbnail %s\n", board->thread[curr_iteration].file[file_curr_iteration].thumbnail);
+                                                        debug(3, "Got file thumbnail %s\n", board->thread[curr_iteration].file[file_curr_iteration].thumbnail);
                                                     }
                                                 } else if (strcmp(file_current_key, "height") == 0) {
                                                     if (cJSON_IsNumber(file) && file->valueint) {
                                                         board->thread[curr_iteration].file[file_curr_iteration].height = file->valueint;
-                                                        debug("Got file height %zu\n", board->thread[curr_iteration].file[file_curr_iteration].height);
+                                                        debug(3, "Got file height %zu\n", board->thread[curr_iteration].file[file_curr_iteration].height);
                                                     }
                                                 } else if (strcmp(file_current_key, "width") == 0) {
                                                     if (cJSON_IsNumber(file) && file->valueint) {
                                                         board->thread[curr_iteration].file[file_curr_iteration].width = file->valueint;
-                                                        debug("Got file width %zu\n", board->thread[curr_iteration].file[file_curr_iteration].width);
+                                                        debug(3, "Got file width %zu\n", board->thread[curr_iteration].file[file_curr_iteration].width);
                                                     }
                                                 } else if (strcmp(file_current_key, "height") == 0) {
                                                     if (cJSON_IsNumber(file) && file->valueint) {
                                                         board->thread[curr_iteration].file[file_curr_iteration].height = file->valueint;
-                                                        debug("Got file height %zu\n", board->thread[curr_iteration].file[file_curr_iteration].height);
+                                                        debug(3, "Got file height %zu\n", board->thread[curr_iteration].file[file_curr_iteration].height);
                                                     }
                                                 } else if (strcmp(file_current_key, "size") == 0) {
                                                     if (cJSON_IsNumber(file) && file->valueint) {
                                                         board->thread[curr_iteration].file[file_curr_iteration].size = file->valueint;
-                                                        debug("Got file size %zu\n", board->thread[curr_iteration].file[file_curr_iteration].size);
+                                                        debug(3, "Got file size %zu\n", board->thread[curr_iteration].file[file_curr_iteration].size);
                                                     }
                                                 } else if (strcmp(file_current_key, "tn_height") == 0) {
                                                     if (cJSON_IsNumber(file) && file->valueint) {
                                                         board->thread[curr_iteration].file[file_curr_iteration].tn_height = file->valueint;
-                                                        debug("Got file tn_height %zu\n", board->thread[curr_iteration].file[file_curr_iteration].tn_height);
+                                                        debug(3, "Got file tn_height %zu\n", board->thread[curr_iteration].file[file_curr_iteration].tn_height);
                                                     }
                                                 } else if (strcmp(file_current_key, "tn_width") == 0) {
                                                     if (cJSON_IsNumber(file) && file->valueint) {
                                                         board->thread[curr_iteration].file[file_curr_iteration].tn_width = file->valueint;
-                                                        debug("Got file tn_width %zu\n", board->thread[curr_iteration].file[file_curr_iteration].tn_width);
+                                                        debug(3, "Got file tn_width %zu\n", board->thread[curr_iteration].file[file_curr_iteration].tn_width);
                                                     }
                                                 } else if (strcmp(file_current_key, "type") == 0) {
                                                     if (cJSON_IsNumber(file) && file->valueint) {
                                                         board->thread[curr_iteration].file[file_curr_iteration].type = file->valueint;
-                                                        debug("Got file type %zu\n", board->thread[curr_iteration].file[file_curr_iteration].type);
+                                                        debug(3, "Got file type %zu\n", board->thread[curr_iteration].file[file_curr_iteration].type);
                                                     }
                                                 } else {
-                                                    debug("Skipping file key %s\n", file_current_key);
+                                                    debug(2, "Skipping file key %s\n", file_current_key);
                                                 }
                                             }
                                         }
@@ -646,46 +644,46 @@ static void dvach_popupate_board(board_t* board, cJSON* parse_result)
                         } else if (strcmp(current_key, "lasthit") == 0) {
                             if (cJSON_IsNumber(current_val) && current_val->valueint) {
                                 board->thread[curr_iteration].lasthit = current_val->valueint;
-                                debug("Got lasthit %zu\n", board->thread[curr_iteration].lasthit);
+                                debug(3, "Got lasthit %zu\n", board->thread[curr_iteration].lasthit);
                             }
                         } else if (strcmp(current_key, "posts_count") == 0) {
                             if (cJSON_IsNumber(current_val) && current_val->valueint) {
                                 board->thread[curr_iteration].posts_count = current_val->valueint;
-                                debug("Got posts_count %zu\n", board->thread[curr_iteration].posts_count);
+                                debug(3, "Got posts_count %zu\n", board->thread[curr_iteration].posts_count);
                             }
                         } else if (strcmp(current_key, "num") == 0) {
                             if (cJSON_IsString(current_val) && current_val->valuestring) {
                                 board->thread[curr_iteration].num = atoi(current_val->valuestring);
-                                debug("Got num %zu\n", board->thread[curr_iteration].num);
+                                debug(3, "Got num %zu\n", board->thread[curr_iteration].num);
                             }
                         } else if (strcmp(current_key, "sticky") == 0) {
                             if (cJSON_IsNumber(current_val) && current_val->valueint) {
                                 board->thread[curr_iteration].sticky = current_val->valueint ? true : false;
-                                debug("Got sticky %u\n", board->thread[curr_iteration].sticky);
+                                debug(3, "Got sticky %u\n", board->thread[curr_iteration].sticky);
                             }
                         } else if (strcmp(current_key, "op") == 0) {
                             if (cJSON_IsNumber(current_val) && current_val->valueint) {
                                 board->thread[curr_iteration].op = current_val->valueint ? true : false;
-                                debug("Got op %u\n", board->thread[curr_iteration].op);
+                                debug(3, "Got op %u\n", board->thread[curr_iteration].op);
                             }
                         } else if (strcmp(current_key, "timestamp") == 0) {
                             if (cJSON_IsNumber(current_val) && current_val->valueint) {
                                 board->thread[curr_iteration].timestamp = current_val->valueint;
-                                debug("Got timestamp %zu\n", board->thread[curr_iteration].timestamp);
+                                debug(3, "Got timestamp %zu\n", board->thread[curr_iteration].timestamp);
                             }
                         } else if (strcmp(current_key, "parent") == 0) {
                             if (cJSON_IsNumber(current_val) && current_val->valueint) {
                                 board->thread[curr_iteration].parent = current_val->valueint;
-                                debug("Got parent %zu\n", board->thread[curr_iteration].parent);
+                                debug(3, "Got parent %zu\n", board->thread[curr_iteration].parent);
                             }
                         } else if (strcmp(current_key, "subject") == 0) {
                             if (cJSON_IsString(current_val) && current_val->valuestring) {
                                 assert(strlen(current_val->valuestring) < MAX_ARBITRARY_CHAR_LENGTH);
                                 memcpy(&board->thread[curr_iteration].subject, current_val->valuestring, strlen(current_val->valuestring));
-                                debug("Got subject %s\n", board->thread[curr_iteration].subject);
+                                debug(3, "Got subject %s\n", board->thread[curr_iteration].subject);
                             }
                         } else {
-                            debug("Skipping thread key %s\n", current_key);
+                            debug(2, "Skipping thread key %s\n", current_key);
                         }
                     }
                 }
