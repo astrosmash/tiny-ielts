@@ -5,6 +5,7 @@ static session_t session = { 0 };
 // Gui ctor & dtor
 #define Gui_Init (*Gui_Construct)
 
+
 Gui* Gui_Construct(config_t* config)
 {
     Gui* g = malloc(sizeof(Gui));
@@ -37,7 +38,7 @@ Gui* Gui_Construct(config_t* config)
     my_app_config->my_gui = g;
     my_app_config->window = window;
 
-    if (check_local_account() == 0) {
+    if (local_credentials_file_present() == true) {
         _Gui_DrawMainScreen();
     } else {
         _Gui_DrawLoginInvitationScreen();
@@ -48,6 +49,7 @@ Gui* Gui_Construct(config_t* config)
     return g;
 }
 
+
 void Gui_Destruct(Gui** g)
 {
     assert(*g);
@@ -55,6 +57,7 @@ void Gui_Destruct(Gui** g)
     free(*g);
     *g = NULL;
 }
+
 
 // Public methods
 // Setters
@@ -64,10 +67,12 @@ static void Gui_SetApp(Gui* const g, GtkApplication* app)
     g->app = app;
 }
 
+
 static void Gui_SetUserData(Gui* const g, gpointer user_data)
 {
     g->user_data = user_data;
 }
+
 
 // Getters
 
@@ -76,16 +81,19 @@ GtkApplication* Gui_GetApp(Gui* const g)
     return g->app;
 }
 
+
 gpointer Gui_GetUserData(Gui* const g)
 {
     return g->user_data;
 }
+
 
 char* Gui_GetName(Gui* const g)
 {
     assert(g);
     return g->name;
 }
+
 
 // Private methods
 
@@ -94,6 +102,7 @@ static void _Gui_SetName(Gui* g, char* name)
     assert(name);
     strncpy(g->name, name, strlen(name));
 }
+
 
 // Callback for exit button that calls dtor
 
@@ -105,6 +114,7 @@ static void Gui_Exit(gpointer data, GtkWidget* widget)
     Gui_Destruct(&g_config->my_gui);
     gtk_main_quit();
 }
+
 
 //static void Gui_RunChildThread(GtkWidget* widget, gpointer data)
 //{
@@ -118,6 +128,7 @@ static void Gui_Exit(gpointer data, GtkWidget* widget)
 //    g_thread_unref(thread);
 //}
 
+
 static void Gui_JoinThread(GtkWidget* widget, gpointer data)
 {
     assert(data);
@@ -130,6 +141,7 @@ static void Gui_JoinThread(GtkWidget* widget, gpointer data)
         debug("thread joined ok res %s\n", (char*)res);
     }
 }
+
 
 static void* thread_func(void* data)
 {
@@ -207,10 +219,11 @@ static void* thread_func(void* data)
     }
 
     gtk_widget_show_all(my_app_config->window);
-
+    free(board); // if not null it was malloc'ed ok
     //    do_network(data, 0);
     return "thread_func launched ok";
 }
+
 
 static void* _Gui_RunChildThread(GtkWidget* widget, gpointer data)
 {
@@ -235,6 +248,7 @@ static void* _Gui_RunChildThread(GtkWidget* widget, gpointer data)
     return NULL;
 }
 
+
 static void _Gui_GetText(GtkEntry* entry, gpointer data)
 {
     assert(entry);
@@ -248,22 +262,7 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
 
     if (text_len) {
         static session_creds_t creds = { 0 };
-        if (text_type == FilePath) {
-            debug("read %s\n", text);
-            g_print("%s \n", text);
-
-            // Does a file exist?
-            if (check_local_file(text) == 0) {
-                // Try to read it
-                char* file = NULL;
-                if ((file = read_file(text)) == NULL) {
-                    debug("was not able to read %s\n", text);
-                    return;
-                }
-                debug("was able to read %s %s\n", text, file);
-                free(file);
-            }
-        } else if (text_type == Username) {
+        if (text_type == Username) {
             // Make sure no overflow occurs
             assert(text_len < MAX_CRED_LENGTH);
             debug("read username %s\n", text);
@@ -375,6 +374,7 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
     }
 }
 
+
 static void _Gui_DrawMainScreen()
 {
     assert(my_app_config->window);
@@ -396,15 +396,6 @@ static void _Gui_DrawMainScreen()
     gtk_container_set_border_width(GTK_CONTAINER(box), 7);
     gtk_container_add(GTK_CONTAINER(my_app_config->window), box);
     gtk_widget_set_name(box, "main_box");
-
-    // Text input
-    entry = gtk_entry_new();
-    assert(entry);
-    gtk_container_add(GTK_CONTAINER(box), entry);
-    gtk_widget_set_name(entry, "main_text_input");
-
-    static size_t mode = FilePath;
-    g_signal_connect(GTK_ENTRY(entry), "activate", G_CALLBACK(_Gui_GetText), &mode);
 
     scroll = gtk_scrolled_window_new(NULL, NULL);
     assert(scroll);
@@ -507,6 +498,7 @@ static void _Gui_DrawMainScreen()
     }
 }
 
+
 static void _Gui_DrawLoginInvitationScreen()
 {
     assert(my_app_config->window);
@@ -544,6 +536,7 @@ static void _Gui_DrawLoginInvitationScreen()
     gtk_grid_attach(GTK_GRID(grid), button, 0, 2, 1, 1);
     gtk_widget_set_name(button, "quit_button");
 }
+
 
 static void _Gui_WantAuthenticate(GtkWidget* widget, gpointer data)
 {
