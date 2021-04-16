@@ -167,7 +167,7 @@ static void* thread_func(void* data)
     }
 
 
-    GtkWidget *box = NULL, *label = NULL, *grid = NULL, *scroll = NULL, *sbox = NULL, *separator = NULL, *btn = NULL;
+    GtkWidget *box = NULL, *label = NULL, *grid = NULL, *scroll = NULL, *sbox = NULL, *separator = NULL;
 
     scroll = gtk_scrolled_window_new(NULL, NULL);
     assert(scroll);
@@ -225,12 +225,6 @@ static void* thread_func(void* data)
             gtk_container_add (GTK_CONTAINER (sbox), textlabel);
 
 //            free(text); !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-            btn = gtk_button_new_with_label("V tred!");
-            assert(btn);
-//            g_signal_connect(btn, "clicked", G_CALLBACK(_Gui_RunChildThread), NULL);
-            gtk_container_add (GTK_CONTAINER (sbox), btn);
-//            gtk_widget_set_name(button, board_name);
 
             gtk_grid_attach(GTK_GRID(grid), sbox, 0, i, 1, 1);
 
