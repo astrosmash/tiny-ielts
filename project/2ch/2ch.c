@@ -68,7 +68,6 @@ cleanup:
     return EXIT_FAILURE;
 }
 
-
 // Populates board info from catalog.
 // Using mod cookie is optional.
 
@@ -86,7 +85,7 @@ extern board_t* fetch_board_info(session_t* session, const char* board_name)
     s.ptr[0] = '\0';
 
     CURL* curl = NULL;
-    
+
     if (!snprintf(cookie, MAX_CRED_LENGTH - 2, "Cookie: %s", session->cookie)) {
         debug(1, "Cannot assemble Cookie header %s", session->cookie);
         goto cleanup;
@@ -146,7 +145,8 @@ cleanup:
     free(cookie);
     free(url);
     free(s.ptr);
-    if (curl) curl_easy_cleanup(curl);
+    if (curl)
+        curl_easy_cleanup(curl);
     return NULL;
 }
 

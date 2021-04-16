@@ -109,7 +109,8 @@ static size_t curl_write_func(void* ptr, size_t size, size_t nmemb, struct curl_
 
 static CURL* dvach_curl_init(struct curl_string* s, const char* cookie)
 {
-    CURL* curl = curl_easy_init();;
+    CURL* curl = curl_easy_init();
+    ;
     assert(curl);
 
     struct curl_slist* headers = NULL;

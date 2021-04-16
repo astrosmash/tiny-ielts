@@ -13,7 +13,6 @@
 // Data structures
 #include "structs.h"
 
-
 // Functions and methods
 // Internal
 static void dvach_populate_session(session_t*, cJSON*);
@@ -28,7 +27,6 @@ extern board_t* fetch_board_info(session_t*, const char*);
 //extern thread_t* fetch_thread_from_board(session_t*, board_t*);
 //extern post_t* fetch_post_from_thread(session_t*, thread_t*);
 //extern file_t* fetch_file_from_post(session_t*, post_t*);
-
 
 // Definition
 #include "2ch.c"
