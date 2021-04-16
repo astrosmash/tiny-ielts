@@ -25,6 +25,8 @@
 #include <sys/select.h>
 #endif
 
+void* malloc_memset(size_t);
+
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
 // Inclusive logging output
@@ -43,5 +45,5 @@
 #define DEBUG 1
 #define DEBUG_LEVEL 5
 
-#include "2ch.h"
+#include "2ch/2ch.h"
 #include "gui.h"

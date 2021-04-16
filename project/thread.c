@@ -5,13 +5,10 @@
 Thread* Thread_Construct(void* (*func_addr)(void*), void* func_arg)
 {
     // Arguments passed to pthread_create
-    Thread* t = malloc(sizeof(Thread));
+    Thread* t = malloc_memset(sizeof(Thread));
 
-    assert(t);
     assert(func_addr);
     assert(func_arg);
-
-    memset(t, 0, sizeof(*t));
 
     _Thread_SetName(t, "2ch_worker_thread");
     debug(3, "Allocated new object on %p\n", (void*)t);

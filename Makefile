@@ -13,14 +13,12 @@ CLANG_INCLUDES_COMMON += -I. -I$(PROJECT_SRC_DIR)/libbpf/include
 
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S), Darwin)
-CJSON = cJSON
-GTK = gtk+-3.0
+CJSON := cJSON
 else
-CJSON = cjson
-# GTK = gtk+-3.0-1
-GTK = gtk+-3.0
+CJSON := cjson
 endif
 
+GTK := gtk+-3.0
 GTK_CFLAGS := $(shell pkg-config --cflags $(GTK))
 GTK_INCLUDE := $(shell pkg-config --libs $(GTK))
 
@@ -28,7 +26,8 @@ CLANG_FLAGS_PROJECT += -L$(PROJECT_SRC_DIR) $(CLANG_FLAGS_COMMON) $(GTK_CFLAGS) 
 CLANG_INCLUDES_PROJECT += $(CLANG_INCLUDES_COMMON) $(GTK_INCLUDE)
 
 NPROC := $(shell nproc)
-PROJECT_FILES := $(shell ls $(PROJECT_SRC_DIR))
+PROJECT_FILES := $(shell find $(PROJECT_SRC_DIR) -type f)
+
 CURRENT_KERNEL := $(shell uname -r | sed "s/[-].*$\//")
 PROJECT_OBJECT := output_bin
 
@@ -72,8 +71,8 @@ sanitize: verify_cmds
 
 format: verify_cmds
 	@for FILE in $(PROJECT_FILES) ; do \
-		if ! ($(CLANG-FORMAT) -style='Webkit' $(PROJECT_SRC_DIR)/"$${FILE}" > /tmp/"$${FILE}" && diff $(PROJECT_SRC_DIR)/"$${FILE}" /tmp/"$${FILE}"); then \
-			echo "*** ERROR: consider $(CLANG-FORMAT) -verbose -style='Webkit' project/"$${FILE}" > /tmp/"$${FILE}" && mv /tmp/"$${FILE}" project/"$${FILE}"" ;\
+		if ! ($(CLANG-FORMAT) -style='Webkit' "$${FILE}" > /tmp/test && diff "$${FILE}" /tmp/test); then \
+			echo "*** ERROR: consider $(CLANG-FORMAT) -verbose -style='Webkit' "$${FILE}" > /tmp/test && mv /tmp/test "$${FILE}"" ;\
 			exit 3; \
 		else true; fi; \
 	done

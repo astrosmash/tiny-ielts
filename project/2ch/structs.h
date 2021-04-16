@@ -1,25 +1,3 @@
-#define MAX_ARBITRARY_CHAR_LENGTH 512
-#define MAX_BOARD_NAME_LENGTH 10
-#define MAX_CRED_LENGTH 99
-
-#define MAX_NUM_OF_BOARDS 40
-#define MAX_NUM_OF_FILES 512
-#define MAX_NUM_OF_JIDS 10
-#define MAX_NUM_OF_THREADS 512
-
-// Auxilliary data structures
-const char* client_whitelisted_users[] = { "Alexandr", "Shamil", "shamil1989" };
-
-typedef enum {
-    false,
-    true
-} bool;
-
-struct curl_string {
-    char* ptr;
-    size_t len;
-};
-
 // Data structures
 typedef struct {
     char username[MAX_CRED_LENGTH];
@@ -136,25 +114,3 @@ typedef struct {
     thread_t thread[MAX_NUM_OF_THREADS]; // TBR - maybe need dynamic allocation
 
 } board_t;
-
-// Functions and methods
-// Internal
-static size_t curl_write_func(void*, size_t, size_t, struct curl_string*);
-static CURL* dvach_curl_init(struct curl_string*, const char*);
-static void dvach_popupate_session(session_t*, cJSON*);
-static void dvach_popupate_board(board_t*, cJSON*);
-
-// External
-extern const char* get_homedir(void);
-extern const char* creds_file_path(bool, bool);
-extern ssize_t session_init(session_creds_t*, session_t*);
-extern board_t* fetch_board_info(session_t*, const char*);
-
-// TODO
-//extern post_t* fetch_all_posts_from_board(session_t*, board_t*);
-//extern thread_t* fetch_thread_from_board(session_t*, board_t*);
-//extern post_t* fetch_post_from_thread(session_t*, thread_t*);
-//extern file_t* fetch_file_from_post(session_t*, post_t*);
-
-// Definition
-#include "2ch.c"

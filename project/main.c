@@ -1,5 +1,16 @@
 #include "main.h"
 
+void* malloc_memset(size_t size)
+{
+    void* block = malloc(size);
+    assert(block);
+
+    memset(block, 0, size);
+
+    debug(3, "Allocating clear object with size %zu on %p", size, block);
+    return block;
+}
+
 int main(int argc, char** argv)
 {
     ssize_t opt = 0;
@@ -18,6 +29,7 @@ int main(int argc, char** argv)
 
     if (gui) {
         gtk_init(&argc, &argv);
+        curl_global_init(CURL_GLOBAL_DEFAULT);
 
         Gui* main_gui = NULL;
         if (((main_gui = Gui_Init()) == NULL)) {
@@ -29,5 +41,6 @@ int main(int argc, char** argv)
         gtk_main();
     }
 
+    curl_global_cleanup();
     exit(EXIT_SUCCESS);
 }
