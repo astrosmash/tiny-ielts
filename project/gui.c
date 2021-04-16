@@ -6,6 +6,7 @@ static session_t session = { 0 };
 #define Gui_Init (*Gui_Construct)
 
 
+
 Gui* Gui_Construct(config_t* config)
 {
     Gui* g = malloc(sizeof(Gui));
@@ -116,6 +117,7 @@ static void Gui_Exit(gpointer data, GtkWidget* widget)
 }
 
 
+
 //static void Gui_RunChildThread(GtkWidget* widget, gpointer data)
 //{
 //    gui_runtime_config* g_config = data;
@@ -127,6 +129,7 @@ static void Gui_Exit(gpointer data, GtkWidget* widget)
 //    debug("launching thread %s\n", Gui_GetName(g_config->my_gui));
 //    g_thread_unref(thread);
 //}
+
 
 
 static void Gui_JoinThread(GtkWidget* widget, gpointer data)
@@ -141,6 +144,7 @@ static void Gui_JoinThread(GtkWidget* widget, gpointer data)
         debug(3, "thread joined ok res %s\n", (char*)res);
     }
 }
+
 
 
 static void* thread_func(void* data)
@@ -225,6 +229,7 @@ static void* thread_func(void* data)
 }
 
 
+
 static void* _Gui_RunChildThread(GtkWidget* widget, gpointer data)
 {
     assert(data);
@@ -247,6 +252,7 @@ static void* _Gui_RunChildThread(GtkWidget* widget, gpointer data)
     //    do_network(my_config, 0);
     return NULL;
 }
+
 
 
 static void _Gui_GetText(GtkEntry* entry, gpointer data)
@@ -375,6 +381,7 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
 }
 
 
+
 static void _Gui_DrawMainScreen()
 {
     assert(my_app_config->window);
@@ -499,6 +506,7 @@ static void _Gui_DrawMainScreen()
 }
 
 
+
 static void _Gui_DrawLoginInvitationScreen()
 {
     assert(my_app_config->window);
@@ -536,6 +544,7 @@ static void _Gui_DrawLoginInvitationScreen()
     gtk_grid_attach(GTK_GRID(grid), button, 0, 2, 1, 1);
     gtk_widget_set_name(button, "quit_button");
 }
+
 
 
 static void _Gui_WantAuthenticate(GtkWidget* widget, gpointer data)
