@@ -1,7 +1,3 @@
-// Include debug output
-#define DEBUG 1
-#define DEBUG_LEVEL 2
-
 #define MAX_ARBITRARY_CHAR_LENGTH 512
 #define MAX_BOARD_NAME_LENGTH 10
 #define MAX_CRED_LENGTH 99
@@ -150,7 +146,7 @@ static void dvach_popupate_board(board_t*, cJSON*);
 
 // External
 extern const char* get_homedir(void);
-extern bool local_credentials_file_present(void);
+extern const char* creds_file_path(bool, bool);
 extern ssize_t session_init(session_creds_t*, session_t*);
 extern board_t* fetch_board_info(session_t*, const char*);
 

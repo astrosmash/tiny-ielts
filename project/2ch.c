@@ -12,10 +12,9 @@ extern const char* get_homedir(void)
     return homedir;
 }
 
-extern bool local_credentials_file_present(void)
+extern const char* creds_file_path(bool need_to_create, bool need_to_delete)
 {
-    bool credentials_present = true;
-    size_t res = 0;
+    assert(!(need_to_create && need_to_delete));
 
     const char* homedir = get_homedir();
     const char* account_subdir = "/.mod2ch";
@@ -32,20 +31,25 @@ extern bool local_credentials_file_present(void)
 
     debug(3, "Determined credentials directory to be %s\n", fullpath);
 
+    size_t res = 0;
     struct stat stat_buf = { 0 };
     if ((res = stat(fullpath, &stat_buf))) {
         debug(4, "Cannot access credentials directory %s (%s)\n", fullpath, strerror(errno));
-        credentials_present = false;
 
-        if ((stat_buf.st_mode & S_IFMT) != S_IFDIR) {
-            debug(4, "%s is not a directory, will try to create...\n", fullpath);
-        }
+        if (need_to_create) {
+            if ((stat_buf.st_mode & S_IFMT) != S_IFDIR) {
+                debug(4, "%s is not a directory, will try to create...\n", fullpath);
+            }
 
-        if ((res = mkdir(fullpath, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH))) {
-            debug(1, "Cannot create credentials directory %s (%s)\n", fullpath, strerror(errno));
+            if ((res = mkdir(fullpath, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH))) {
+                debug(1, "Cannot create credentials directory %s (%s)\n", fullpath, strerror(errno));
+                free(fullpath);
+                return NULL;
+            }
+        } else {
+            // Cannot access a directory and need_to_create = false
             free(fullpath);
-            credentials_present = false;
-            return credentials_present;
+            return NULL;
         }
     }
 
@@ -54,22 +58,34 @@ extern bool local_credentials_file_present(void)
 
     if ((res = stat(fullpath, &stat_buf))) {
         debug(4, "Cannot access credentials file %s (%s)\n", fullpath, strerror(errno));
-        credentials_present = false;
 
-        if ((stat_buf.st_mode & S_IFMT) != S_IFREG) {
-            debug(4, "%s is not a file, will try to create...\n", fullpath);
-        }
+        if (need_to_create) {
+            if ((stat_buf.st_mode & S_IFMT) != S_IFREG) {
+                debug(4, "%s is not a file, will try to create...\n", fullpath);
+            }
 
-        if ((res = open(fullpath, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR)) == -1) {
-            debug(1, "Cannot create credentials file %s (%s)\n", fullpath, strerror(errno));
+            if ((res = open(fullpath, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR)) == -1) {
+                debug(1, "Cannot create credentials file %s (%s)\n", fullpath, strerror(errno));
+                free(fullpath);
+                return NULL;
+            }
+        } else {
+            // Cannot access a file and need_to_create = false
             free(fullpath);
-            credentials_present = false;
-            return credentials_present;
+            return NULL;
         }
     }
 
+    if (need_to_delete) {
+        if (unlink(fullpath)) {
+            debug(1, "Was not able to remove %s (%s)\n", fullpath, strerror(errno));
+        }
+    }
+
+    // copy result to stack
+    const char* ret = fullpath;
     free(fullpath);
-    return credentials_present;
+    return ret;
 }
 
 // Helper function for curl to write output.

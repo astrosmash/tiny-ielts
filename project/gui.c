@@ -1,11 +1,9 @@
 // Gui ctor
 #define Gui_Init (*Gui_Construct)
 
-// Global vars
+// Global state vars
 GuiRuntimeConfig* my_app_config = NULL;
 static session_t session = { 0 };
-
-
 
 Gui* Gui_Construct(void)
 {
@@ -13,31 +11,47 @@ Gui* Gui_Construct(void)
     assert(g);
     memset(g, 0, sizeof(*g));
 
-    _Gui_SetName(g, "myggtk_gui");
-    debug(3, "allocated new object on %p\n", (void*)g);
+    _Gui_SetName(g, "2ch_worker_gui");
+    debug(3, "Allocated new object on %p\n", (void*)g);
 
     my_app_config = malloc(sizeof(GuiRuntimeConfig));
     assert(my_app_config);
     memset(my_app_config, 0, sizeof(*my_app_config));
 
+    // Get screen size
+    GdkRectangle workarea = { 0 };
+    gdk_monitor_get_workarea(
+        gdk_display_get_primary_monitor(gdk_display_get_default()),
+        &workarea);
+
+    const size_t screen_width = workarea.width;
+    const size_t screen_height = workarea.height;
+    debug(3, "Determined screen size to be %zux%zu\n", screen_width, screen_height);
+
     // Start initialization
-    GtkWidget* window = NULL;
+    GtkWidget* main_window = NULL;
 
     // Main window
-    window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-    assert(window);
-    gtk_widget_set_name(window, "main_window");
+    main_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    assert(main_window);
+    gtk_widget_set_name(main_window, "main_window");
 
-    gtk_window_set_default_size(GTK_WINDOW(window), 1920, 1080);
-    gtk_window_set_title(GTK_WINDOW(window), "2ch-mod");
+    gtk_window_set_default_size(GTK_WINDOW(main_window), screen_width / 1.2, screen_height / 1.2);
+    gtk_window_set_title(GTK_WINDOW(main_window), "2ch-mod");
 
-    gtk_container_set_border_width(GTK_CONTAINER(window), 10);
-    g_signal_connect_swapped(window, "delete_event", G_CALLBACK(Gui_Exit), my_app_config);
+    gtk_container_set_border_width(GTK_CONTAINER(main_window), 5);
+    g_signal_connect_swapped(main_window, "delete_event", G_CALLBACK(Gui_Exit), my_app_config);
+
+    // Put it on the foreground
+    gtk_window_set_keep_above(GTK_WINDOW(main_window), TRUE);
+    gtk_window_present(GTK_WINDOW(main_window));
 
     my_app_config->my_gui = g;
-    my_app_config->window = window;
+    my_app_config->window = main_window;
 
-    if (local_credentials_file_present()) {
+    // Just check if a file exists without removing/creating it.
+    // Necessary checks will be performed later.
+    if (creds_file_path(false, false)) {
         _Gui_DrawMainScreen();
     } else {
         _Gui_DrawLoginInvitationScreen();
@@ -48,15 +62,15 @@ Gui* Gui_Construct(void)
     return g;
 }
 
-
 void Gui_Destruct(Gui** g)
 {
     assert(*g);
-    debug(3, "freed object on %p\n", (void*)*g);
+    debug(3, "Freed object on %p\n", (void*)*g);
     free(*g);
     *g = NULL;
-}
 
+    free(my_app_config);
+}
 
 // Public methods
 
@@ -67,7 +81,6 @@ char* Gui_GetName(Gui* const g)
     return g->name;
 }
 
-
 // Private methods
 
 static void _Gui_SetName(Gui* g, char* name)
@@ -75,7 +88,6 @@ static void _Gui_SetName(Gui* g, char* name)
     assert(name);
     strncpy(g->name, name, strlen(name));
 }
-
 
 // Callback for exit button that calls dtor
 
@@ -87,8 +99,6 @@ static void Gui_Exit(gpointer data, GtkWidget* widget)
     Gui_Destruct(&g_config->my_gui);
     gtk_main_quit();
 }
-
-
 
 //static void Gui_RunChildThread(GtkWidget* widget, gpointer data)
 //{
@@ -102,8 +112,6 @@ static void Gui_Exit(gpointer data, GtkWidget* widget)
 //    g_thread_unref(thread);
 //}
 
-
-
 static void Gui_JoinThread(GtkWidget* widget, gpointer data)
 {
     assert(data);
@@ -116,8 +124,6 @@ static void Gui_JoinThread(GtkWidget* widget, gpointer data)
         debug(3, "thread joined ok res %s\n", (char*)res);
     }
 }
-
-
 
 static void* thread_func(void* data)
 {
@@ -142,7 +148,6 @@ static void* thread_func(void* data)
         }
     }
 
-
     GtkWidget *box = NULL, *label = NULL, *grid = NULL, *scroll = NULL, *sbox = NULL, *separator = NULL;
 
     scroll = gtk_scrolled_window_new(NULL, NULL);
@@ -150,22 +155,20 @@ static void* thread_func(void* data)
     gtk_container_add(GTK_CONTAINER(my_app_config->window), scroll);
 
     gtk_widget_set_name(scroll, "main_scroll");
-    gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scroll),
-                                    GTK_POLICY_AUTOMATIC,
-                                    GTK_POLICY_AUTOMATIC);
-
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll),
+        GTK_POLICY_AUTOMATIC,
+        GTK_POLICY_AUTOMATIC);
 
     grid = gtk_grid_new();
     assert(grid);
 
     gtk_widget_set_name(grid, "main_grid");
-    gtk_grid_set_column_homogeneous (GTK_GRID (grid), TRUE);
+    gtk_grid_set_column_homogeneous(GTK_GRID(grid), TRUE);
 
     gtk_container_add(GTK_CONTAINER(scroll), grid);
 
-    gtk_grid_set_column_spacing (GTK_GRID (grid), 10);
-    gtk_grid_set_row_spacing (GTK_GRID (grid), 10);
-
+    gtk_grid_set_column_spacing(GTK_GRID(grid), 10);
+    gtk_grid_set_row_spacing(GTK_GRID(grid), 10);
 
     for (size_t i = 0; i < sizeof(board->thread) / sizeof(*board->thread); ++i) {
 
@@ -184,13 +187,12 @@ static void* thread_func(void* data)
             gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_CENTER);
             gtk_label_set_line_wrap(GTK_LABEL(label), FALSE);
 
-            sbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 10);
+            sbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
             assert(sbox);
 
-            gtk_container_add (GTK_CONTAINER (sbox), label);
+            gtk_container_add(GTK_CONTAINER(sbox), label);
 
             gtk_grid_attach(GTK_GRID(grid), sbox, 0, i, 1, 1);
-
         }
     }
 
@@ -199,8 +201,6 @@ static void* thread_func(void* data)
     //    do_network(data, 0);
     return "thread_func launched ok";
 }
-
-
 
 static void* _Gui_RunChildThread(GtkWidget* widget, gpointer data)
 {
@@ -224,8 +224,6 @@ static void* _Gui_RunChildThread(GtkWidget* widget, gpointer data)
     //    do_network(my_config, 0);
     return NULL;
 }
-
-
 
 static void _Gui_GetText(GtkEntry* entry, gpointer data)
 {
@@ -287,26 +285,8 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
                     return;
                 }
 
-                const char* homedir = NULL;
-
-                if ((homedir = getenv("HOME")) == NULL) {
-                    homedir = getpwuid(getuid())->pw_dir;
-                }
-
-                assert(homedir);
-                debug(3, "homedir is %s\n", homedir);
-
-                const char* dvach_account_file = "/.mod2ch/.creds";
-
-                size_t fullpathsize = strlen(homedir) + strlen(dvach_account_file) + 2;
-                char* fullpath = malloc(fullpathsize);
-                assert(fullpath);
-
-                memset(fullpath, 0, fullpathsize);
-
-                strncpy(fullpath, homedir, strlen(homedir));
-
-                strncat(fullpath, dvach_account_file, strlen(dvach_account_file));
+                // No file was present and we are authenticating. Create a file
+                const char* fullpath = creds_file_path(true, false);
                 debug(3, "writing credentials to %s\n", fullpath);
 
                 const char* mode = "w";
@@ -352,8 +332,6 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
     }
 }
 
-
-
 static void _Gui_DrawMainScreen()
 {
     assert(my_app_config->window);
@@ -397,33 +375,16 @@ static void _Gui_DrawMainScreen()
 
     if (!strlen(session.cookie) || !strlen(session.creds->username) || !strlen(session.creds->password)) {
         // File is present - read it
-        const char* homedir = NULL;
-
-        if ((homedir = getenv("HOME")) == NULL) {
-            homedir = getpwuid(getuid())->pw_dir;
-        }
-
-        assert(homedir);
-        debug(3, "homedir is %s\n", homedir);
-
-        const char* dvach_account_file = "/.mod2ch/.creds";
-
-        size_t fullpathsize = strlen(homedir) + strlen(dvach_account_file) + 2;
-        char* fullpath = malloc(fullpathsize);
+        const char* fullpath = creds_file_path(false, false);
         assert(fullpath);
 
-        memset(fullpath, 0, fullpathsize);
-
-        strncpy(fullpath, homedir, strlen(homedir));
-
-        strncat(fullpath, dvach_account_file, strlen(dvach_account_file));
         debug(3, "reading credentials from %s\n", fullpath);
 
         const char* opmode = "r";
         FILE* file = NULL;
 
         if ((file = fopen(fullpath, opmode)) == NULL) {
-            debug(3, "fopen(%s) no file\n", fullpath);
+            debug(1, "fopen(%s) no file\n", fullpath);
         }
 
         size_t buf_size = 1024; // FIXME: will overflow on large file
@@ -438,8 +399,13 @@ static void _Gui_DrawMainScreen()
         size_t ret = fread(buf, sizeof(char), buf_size, file);
         fclose(file);
         debug(4, "fread(%s) %zu bytes\n", fullpath, ret);
-        if (!ret)
-            return; // no content was read in file
+        if (ret < 32) {
+            // no content was read in file or it seems corrupt
+            // remove it
+            debug(1, "No content was read! Is auth file corrupt? Removing %s\n", fullpath);
+            fullpath = creds_file_path(false, true); // remove file
+            return;
+        }
 
         char* strtok_saveptr = NULL;
         char* line = strtok_r(buf, "\n", &strtok_saveptr);
@@ -476,8 +442,6 @@ static void _Gui_DrawMainScreen()
         }
     }
 }
-
-
 
 static void _Gui_DrawLoginInvitationScreen()
 {
@@ -516,8 +480,6 @@ static void _Gui_DrawLoginInvitationScreen()
     gtk_grid_attach(GTK_GRID(grid), button, 0, 2, 1, 1);
     gtk_widget_set_name(button, "quit_button");
 }
-
-
 
 static void _Gui_WantAuthenticate(GtkWidget* widget, gpointer data)
 {

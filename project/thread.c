@@ -13,7 +13,7 @@ Thread* Thread_Construct(void* (*func_addr)(void*), void* func_arg)
 
     memset(t, 0, sizeof(*t));
 
-    _Thread_SetName(t, "2ch_worker");
+    _Thread_SetName(t, "2ch_worker_thread");
     debug(3, "Allocated new object on %p\n", (void*)t);
 
     ssize_t op_status = 0;
@@ -66,4 +66,3 @@ static void _Thread_SetName(Thread* t, char* name)
     assert(name);
     strncpy(t->name, name, strlen(name));
 }
-

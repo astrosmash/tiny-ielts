@@ -33,12 +33,15 @@
 // 3: verbose info about parsed fields / configurations that were set
 // 4: iteration numbers and info about current location in nested loops
 // 5: full trace of received content
-#define debug(lvl, fmt, ...)                                                                       \
+#define debug(lvl, fmt, ...)                                                                  \
     do {                                                                                      \
-        if (DEBUG && DEBUG_LEVEL >= lvl)                                                                            \
+        if (DEBUG && DEBUG_LEVEL >= lvl)                                                      \
             fprintf(stderr, "\n%s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, __VA_ARGS__); \
     } while (0)
 
+// Include debug output
+#define DEBUG 1
+#define DEBUG_LEVEL 5
 
 #include "2ch.h"
 #include "config.h"

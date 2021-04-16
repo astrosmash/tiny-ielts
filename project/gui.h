@@ -36,7 +36,6 @@ static char* Gui_GetName(Gui* const);
 // Private methods
 static void _Gui_SetName(Gui*, char*);
 
-
 // Static methods
 // Callback for exit button that calls dtor, called with swapped params
 static void Gui_Exit(gpointer, GtkWidget*);
@@ -47,7 +46,6 @@ static void _Gui_GetText(GtkEntry*, gpointer);
 static void _Gui_WantAuthenticate(GtkWidget*, gpointer);
 
 static void* _Gui_RunChildThread(GtkWidget*, gpointer);
-
 
 static void* thread_func(void*);
 
