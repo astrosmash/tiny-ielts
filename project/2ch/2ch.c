@@ -48,7 +48,7 @@ extern ssize_t session_init(session_creds_t* creds, session_t* session)
         }
 
         session->creds = creds;
-        dvach_popupate_session(session, parse_result);
+        dvach_populate_session(session, parse_result);
 
         cJSON_Delete(parse_result); // cjson checks for nullptr here
     } else {
@@ -127,7 +127,7 @@ extern board_t* fetch_board_info(session_t* session, const char* board_name)
             goto cleanup;
         }
 
-        dvach_popupate_board(board, parse_result);
+        dvach_populate_board(board, parse_result);
 
         cJSON_Delete(parse_result); // cjson checks for nullptr here
     } else {
@@ -135,7 +135,6 @@ extern board_t* fetch_board_info(session_t* session, const char* board_name)
         goto cleanup;
     }
 
-    free(board);
     free(cookie);
     free(url);
     free(s.ptr);

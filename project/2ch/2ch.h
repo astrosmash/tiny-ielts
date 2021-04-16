@@ -16,8 +16,8 @@
 
 // Functions and methods
 // Internal
-static void dvach_popupate_session(session_t*, cJSON*);
-static void dvach_popupate_board(board_t*, cJSON*);
+static void dvach_populate_session(session_t*, cJSON*);
+static void dvach_populate_board(board_t*, cJSON*);
 
 // External
 extern ssize_t session_init(session_creds_t*, session_t*);
