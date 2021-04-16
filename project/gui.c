@@ -64,6 +64,9 @@ Gui* Gui_Construct(void)
 
 void Gui_Destruct(Gui** g)
 {
+    if (my_app_config->child_thread)
+        Thread_Destruct(&my_app_config->child_thread);
+
     assert(*g);
     debug(3, "Freed object on %p\n", (void*)*g);
     free(*g);
