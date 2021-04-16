@@ -3,34 +3,19 @@
 
 // Global state vars
 GuiRuntimeConfig* my_app_config = NULL;
+session_creds_t* creds = NULL;
 session_t* session = NULL;
 
 Gui* Gui_Construct(void)
 {
-    Gui* g = malloc(sizeof(Gui));
-    assert(g);
-    memset(g, 0, sizeof(*g));
+    Gui* g = malloc_memset(sizeof(Gui));
 
     _Gui_SetName(g, "2ch_worker_gui");
     debug(3, "Allocated new object on %p\n", (void*)g);
 
-    my_app_config = malloc(sizeof(GuiRuntimeConfig));
-    assert(my_app_config);
-    memset(my_app_config, 0, sizeof(*my_app_config));
-
-    session = malloc(sizeof (session_t));
-    assert(session);
-    memset(session, 0, sizeof(*session));
-
-    // Get screen size
-    GdkRectangle workarea = { 0 };
-    gdk_monitor_get_workarea(
-        gdk_display_get_primary_monitor(gdk_display_get_default()),
-        &workarea);
-
-    const size_t screen_width = workarea.width;
-    const size_t screen_height = workarea.height;
-    debug(3, "Determined screen size to be %zux%zu\n", screen_width, screen_height);
+    // Allocate global state vars
+    my_app_config = malloc_memset(sizeof(GuiRuntimeConfig));
+    session = malloc_memset(sizeof(session_t));
 
     // Start initialization
     GtkWidget* main_window = NULL;
@@ -40,16 +25,13 @@ Gui* Gui_Construct(void)
     assert(main_window);
     gtk_widget_set_name(main_window, "main_window");
 
-    gtk_window_set_default_size(GTK_WINDOW(main_window), screen_width / 1.2, screen_height / 1.2);
+    gtk_window_set_default_size(GTK_WINDOW(main_window), 1600, 800);
     gtk_window_set_title(GTK_WINDOW(main_window), "2ch-mod");
 
     gtk_container_set_border_width(GTK_CONTAINER(main_window), 10);
     g_signal_connect_swapped(main_window, "delete_event", G_CALLBACK(Gui_Exit), my_app_config);
 
-    // (try to) put it on the foreground
-    gtk_window_set_keep_above(GTK_WINDOW(main_window), TRUE);
     gtk_window_present(GTK_WINDOW(main_window));
-
     my_app_config->my_gui = g;
     my_app_config->window = main_window;
 
@@ -68,19 +50,26 @@ Gui* Gui_Construct(void)
 
 void Gui_Destruct(Gui** g)
 {
+    assert(*g);
+
     if (my_app_config->child_thread)
         Thread_Destruct(&my_app_config->child_thread);
+    //        free(my_app_config);
+    //        my_app_config = NULL; // bus error?
 
     if (session)
         free(session);
+    session = NULL;
 
-    assert(*g);
+    if (creds)
+        free(creds);
+    creds = NULL;
+
     debug(3, "Freed object on %p\n", (void*)*g);
     free(*g);
     *g = NULL;
 
-    //    free(my_app_config);
-    //    my_app_config = NULL; bus error?
+    gtk_main_quit();
 }
 
 // Getters
@@ -104,7 +93,6 @@ static void Gui_Exit(gpointer data, GtkWidget* widget)
     GuiRuntimeConfig* g_config = data;
     debug(3, "freeing %s\n", Gui_GetName(g_config->my_gui));
     Gui_Destruct(&g_config->my_gui);
-    gtk_main_quit();
 }
 
 //static void Gui_RunChildThread(GtkWidget* widget, gpointer data)
@@ -136,6 +124,8 @@ static void _Gui_RunChildThread(GtkWidget* widget, gpointer data)
     g_config->WorkerData.session = session;
     debug(3, "Passing %s(%s)\n", g_config->WorkerData.board, g_config->WorkerData.session->cookie);
 
+    _Gui_CleanMainChildren();
+
     if (((my_thread = Thread_Init(&thread_func, g_config)) == NULL)) {
         debug(1, "Cannot launch thread_func! %s\n", Gui_GetName(g_config->my_gui));
     }
@@ -153,6 +143,7 @@ static void _Gui_JoinThread(GtkWidget* widget, gpointer data)
 
     if (Thread_Join(g_config->child_thread, &res) == 0) {
         debug(3, "Thread joined ok res %s\n", (char*)res);
+        free(res);
     } else {
         debug(1, "Failed to join thread at %s\n", Gui_GetName(g_config->my_gui));
     }
@@ -185,7 +176,7 @@ static void* thread_func(void* data)
 
     assert(my_app_config->window);
 
-    _Gui_CleanMainChildren();
+    //_Gui_CleanMainChildren(); // this should happen only once!
 
     // Start drawing result
     GtkWidget *grid = NULL, *label = NULL, *sbox = NULL, *scroll = NULL;
@@ -210,6 +201,9 @@ static void* thread_func(void* data)
     gtk_grid_set_column_spacing(GTK_GRID(grid), 10);
     gtk_grid_set_row_spacing(GTK_GRID(grid), 10);
 
+    sbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    assert(sbox);
+
     for (size_t i = 0; i < sizeof(board->thread) / sizeof(*board->thread); ++i) {
         // Start drawing threads
         size_t thread_num = board->thread[i].num;
@@ -223,18 +217,15 @@ static void* thread_func(void* data)
             label = gtk_label_new(thread_subject);
             assert(label);
 
-            gtk_widget_set_name(label, thread_subject);
-            gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_CENTER);
-            gtk_label_set_line_wrap(GTK_LABEL(label), FALSE);
-
-            sbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
-            assert(sbox);
+            //            gtk_widget_set_name(label, thread_subject);
+            //            gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_CENTER);
+            //            gtk_label_set_line_wrap(GTK_LABEL(label), FALSE);
 
             gtk_container_add(GTK_CONTAINER(sbox), label);
-
-            gtk_grid_attach(GTK_GRID(grid), sbox, 0, i, 1, 1);
         }
     }
+
+    gtk_grid_attach(GTK_GRID(grid), sbox, 0, 1, 1, 1);
 
     // Test button to join the thread that generated the info above
     GtkWidget* button = NULL;
@@ -246,9 +237,9 @@ static void* thread_func(void* data)
     gtk_widget_set_name(button, "join_thread_test_button");
 
     gtk_widget_show_all(my_app_config->window);
-    free(board);
+    //    free(board);
     //    do_network(data, 0);
-    return "thread_func launched ok";
+    return board; // to be freed
 }
 
 static void _Gui_GetText(GtkEntry* entry, gpointer data)
@@ -263,50 +254,48 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
     size_t text_len = strlen(text);
 
     if (text_len) {
-        static session_creds_t creds = { 0 };
+        if (!creds)
+            creds = malloc_memset(sizeof(session_creds_t));
+
         if (text_type == Username) {
             // Make sure no overflow occurs
             assert(text_len < MAX_CRED_LENGTH);
             debug(3, "Read username %s\n", text);
-
-            if (strlen(creds.username)) {
-                memset(creds.username, 0, MAX_CRED_LENGTH);
+            if (strlen(creds->username)) {
+                memset(creds->username, 0, MAX_CRED_LENGTH);
             }
-
-            strncpy(creds.username, text, text_len);
+            strncpy(creds->username, text, text_len);
         } else if (text_type == Password) {
             // Make sure no overflow occurs
             assert(text_len < MAX_CRED_LENGTH);
             debug(3, "Read password %s\n", text);
-
-            if (strlen(creds.password)) {
-                memset(creds.password, 0, MAX_CRED_LENGTH);
+            if (strlen(creds->password)) {
+                memset(creds->password, 0, MAX_CRED_LENGTH);
             }
-
-            strncpy(creds.password, text, text_len);
+            strncpy(creds->password, text, text_len);
         } else {
             debug(1, "text_type unknown %zu, doing nothing\n", text_type);
         }
 
         if (strlen(session->cookie) == 0) {
-            if (strlen(creds.username) && strlen(creds.password)) {
-                debug(3, "Triggering session_init with user %s pass %s\n", creds.username, creds.password);
+            if (strlen(creds->username) && strlen(creds->password)) {
+                debug(3, "Triggering session_init with user %s pass %s\n", creds->username, creds->password);
 
                 bool allowed = false;
                 for (size_t i = 0; i < ARRAY_SIZE(client_whitelisted_users); i++) {
-                    if (strcmp(*(client_whitelisted_users + i), creds.username) == 0) {
+                    if (strcmp(*(client_whitelisted_users + i), creds->username) == 0) {
                         allowed = true;
                     }
                 }
                 if (!allowed) {
-                    debug(1, "You are not whitelisted to use this client! %s", creds.username);
+                    debug(1, "You are not whitelisted to use this client! %s", creds->username);
                     return;
                 }
 
                 ssize_t session_res = 0;
 
-                if ((session_res = session_init(&creds, session))) {
-                    debug(1, "Was not able to trigger session_init with user %s pass %s (%zd)\n", creds.username, creds.password, session_res);
+                if ((session_res = session_init(creds, session))) {
+                    debug(1, "Was not able to trigger session_init with user %s pass %s (%zd)\n", creds->username, creds->password, session_res);
                     return;
                 }
 
@@ -323,17 +312,13 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
                 }
 
                 // Write to credentials file
-                char* content = malloc(MAX_ARBITRARY_CHAR_LENGTH);
-                assert(content);
-                memset(content, 0, MAX_ARBITRARY_CHAR_LENGTH);
+                char* content = malloc_memset(MAX_ARBITRARY_CHAR_LENGTH);
 
                 snprintf(content, MAX_ARBITRARY_CHAR_LENGTH - 2, "cookie = %s\nusername = %s\npassword = %s\n", session->cookie, session->creds->username, session->creds->password);
 
                 for (size_t i = 0; i <= MAX_NUM_OF_BOARDS; ++i) {
                     if (strlen(session->moder.boards[i])) {
-                        char* add = NULL;
-                        add = malloc(MAX_ARBITRARY_CHAR_LENGTH);
-                        assert(add);
+                        char* add = malloc_memset(MAX_ARBITRARY_CHAR_LENGTH);
                         snprintf(add, MAX_ARBITRARY_CHAR_LENGTH, "board = %s\n", session->moder.boards[i]);
                         strncat(content, add, strlen(add));
                         free(add);
@@ -407,15 +392,7 @@ static void _Gui_DrawMainScreen(void)
         }
 
         size_t buf_size = 1024; // FIXME: will overflow on large file
-        char* buf = (char*)malloc(buf_size);
-        if (buf == NULL) {
-            fprintf(stderr, "read_file malloc error\n");
-            fclose(file);
-            free(buf);
-            return;
-        }
-
-        memset(buf, 0, buf_size);
+        char* buf = (char*)malloc_memset(buf_size);
 
         size_t ret = fread(buf, sizeof(char), buf_size, file);
         fclose(file);
