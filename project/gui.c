@@ -465,7 +465,7 @@ static void _Gui_DrawMainScreen()
         char* strtok_saveptr = NULL;
         char* line = strtok_r(buf, "\n", &strtok_saveptr);
         while (line != NULL) {
-            if (sscanf(line, "cookie = %25s\n", session.cookie) == 1) {
+            if (sscanf(line, "cookie = %99s\n", session.cookie) == 1) { // read no more than 99 bytes
                 debug("scanned cookie %s\n", session.cookie);
             }
             // No need to scan creds (user/pass) -- creds struct was not allocated!!
