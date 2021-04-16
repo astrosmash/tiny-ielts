@@ -44,6 +44,4 @@
 #define DEBUG_LEVEL 5
 
 #include "2ch.h"
-#include "config.h"
 #include "gui.h"
-#include "network.h"

@@ -39,10 +39,10 @@ Gui* Gui_Construct(void)
     gtk_window_set_default_size(GTK_WINDOW(main_window), screen_width / 1.2, screen_height / 1.2);
     gtk_window_set_title(GTK_WINDOW(main_window), "2ch-mod");
 
-    gtk_container_set_border_width(GTK_CONTAINER(main_window), 5);
+    gtk_container_set_border_width(GTK_CONTAINER(main_window), 10);
     g_signal_connect_swapped(main_window, "delete_event", G_CALLBACK(Gui_Exit), my_app_config);
 
-    // Put it on the foreground
+    // (try to) put it on the foreground
     gtk_window_set_keep_above(GTK_WINDOW(main_window), TRUE);
     gtk_window_present(GTK_WINDOW(main_window));
 
@@ -50,7 +50,7 @@ Gui* Gui_Construct(void)
     my_app_config->window = main_window;
 
     // Just check if a file exists without removing/creating it.
-    // Necessary checks will be performed later.
+    // Necessary checks will be performed later
     if (creds_file_path(false, false)) {
         _Gui_DrawMainScreen();
     } else {
@@ -69,10 +69,9 @@ void Gui_Destruct(Gui** g)
     free(*g);
     *g = NULL;
 
-    free(my_app_config);
+    //    free(my_app_config);
+    //    my_app_config = NULL; bus error?
 }
-
-// Public methods
 
 // Getters
 char* Gui_GetName(Gui* const g)
@@ -82,15 +81,13 @@ char* Gui_GetName(Gui* const g)
 }
 
 // Private methods
-
 static void _Gui_SetName(Gui* g, char* name)
 {
     assert(name);
     strncpy(g->name, name, strlen(name));
 }
 
-// Callback for exit button that calls dtor
-
+// Callback for exit button that calls dtor, called with swapped params
 static void Gui_Exit(gpointer data, GtkWidget* widget)
 {
     assert(data);
@@ -102,26 +99,66 @@ static void Gui_Exit(gpointer data, GtkWidget* widget)
 
 //static void Gui_RunChildThread(GtkWidget* widget, gpointer data)
 //{
+//    assert(data);
 //    GuiRuntimeConfig* g_config = data;
 //    GThread* thread = NULL;
 //
 //    thread = g_thread_new("worker", _Gui_RunChildThread, g_config);
 //    assert(thread);
 //
-//    debug("launching thread %s\n", Gui_GetName(g_config->my_gui));
+//    debug(3, "Launching thread %s\n", Gui_GetName(g_config->my_gui));
 //    g_thread_unref(thread);
 //}
 
-static void Gui_JoinThread(GtkWidget* widget, gpointer data)
+static void _Gui_RunChildThread(GtkWidget* widget, gpointer data)
+{
+    assert(data);
+    GuiRuntimeConfig* g_config = data;
+    assert(g_config->my_gui);
+    Thread* my_thread = NULL;
+
+    const gchar* board_name = gtk_widget_get_name(GTK_WIDGET(widget));
+    debug(3, "Processing board %s\n", board_name);
+
+    memset(&g_config->WorkerData.board, 0, MAX_BOARD_NAME_LENGTH);
+    strncpy(g_config->WorkerData.board, board_name, strlen(board_name));
+
+    g_config->WorkerData.session = session;
+    debug(3, "Passing %s(%s)\n", g_config->WorkerData.board, g_config->WorkerData.session.cookie);
+
+    if (((my_thread = Thread_Init(&thread_func, g_config)) == NULL)) {
+        debug(1, "Cannot launch thread_func! %s\n", Gui_GetName(g_config->my_gui));
+    }
+
+    g_config->child_thread = my_thread;
+}
+
+static void _Gui_JoinThread(GtkWidget* widget, gpointer data)
 {
     assert(data);
     GuiRuntimeConfig* g_config = data;
     assert(g_config->child_thread);
-    debug(3, "joining thread at %s\n", Gui_GetName(g_config->my_gui));
+    debug(3, "Joining thread at %s\n", Gui_GetName(g_config->my_gui));
     void* res = NULL;
 
     if (Thread_Join(g_config->child_thread, &res) == 0) {
-        debug(3, "thread joined ok res %s\n", (char*)res);
+        debug(3, "Thread joined ok res %s\n", (char*)res);
+    } else {
+        debug(1, "Failed to join thread at %s\n", Gui_GetName(g_config->my_gui));
+    }
+}
+
+static void _Gui_CleanMainChildren(void)
+{
+    // Remove all widgets that are present on the main window
+    if (GTK_IS_CONTAINER(my_app_config->window)) {
+        GList* children = gtk_container_get_children(GTK_CONTAINER(my_app_config->window));
+        fprintf(stdout, "Checking child containers...\n");
+
+        for (const GList* iter = children; iter != NULL; iter = g_list_next(iter)) {
+            fprintf(stdout, "FOUND child...\n");
+            gtk_widget_destroy(GTK_WIDGET(iter->data));
+        }
     }
 }
 
@@ -130,7 +167,7 @@ static void* thread_func(void* data)
     assert(data);
     GuiRuntimeConfig* g_config = data;
 
-    debug(3, "Launched ok! %s\n", Gui_GetName(g_config->my_gui));
+    debug(3, "thread_func launched ok! %s\n", Gui_GetName(g_config->my_gui));
     debug(3, "passing board %s (cookie %s)\n", g_config->WorkerData.board, g_config->WorkerData.session.cookie);
 
     board_t* board = fetch_board_info(&g_config->WorkerData.session, g_config->WorkerData.board);
@@ -138,22 +175,15 @@ static void* thread_func(void* data)
 
     assert(my_app_config->window);
 
-    if (GTK_IS_CONTAINER(my_app_config->window)) {
-        GList* children = gtk_container_get_children(GTK_CONTAINER(my_app_config->window));
-        fprintf(stdout, "checking child containers...\n");
+    _Gui_CleanMainChildren();
 
-        for (const GList* iter = children; iter != NULL; iter = g_list_next(iter)) {
-            fprintf(stdout, "FOUND child...\n");
-            gtk_widget_destroy(GTK_WIDGET(iter->data));
-        }
-    }
-
-    GtkWidget *box = NULL, *label = NULL, *grid = NULL, *scroll = NULL, *sbox = NULL, *separator = NULL;
+    // Start drawing result
+    GtkWidget *grid = NULL, *label = NULL, *sbox = NULL, *scroll = NULL;
 
     scroll = gtk_scrolled_window_new(NULL, NULL);
     assert(scroll);
-    gtk_container_add(GTK_CONTAINER(my_app_config->window), scroll);
 
+    gtk_container_add(GTK_CONTAINER(my_app_config->window), scroll);
     gtk_widget_set_name(scroll, "main_scroll");
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll),
         GTK_POLICY_AUTOMATIC,
@@ -171,11 +201,11 @@ static void* thread_func(void* data)
     gtk_grid_set_row_spacing(GTK_GRID(grid), 10);
 
     for (size_t i = 0; i < sizeof(board->thread) / sizeof(*board->thread); ++i) {
-
+        // Start drawing threads
         size_t thread_num = board->thread[i].num;
-        size_t thread_posts_count = board->thread[i].posts_count;
+        //        size_t thread_posts_count = board->thread[i].posts_count;
         char* thread_subject = board->thread[i].subject;
-        char* thread_date = board->thread[i].date;
+        //        char* thread_date = board->thread[i].date;
 
         if (strlen(thread_subject)) {
             debug(3, "Adding view for (%zu) %s/%zu\n", i, thread_subject, thread_num);
@@ -196,33 +226,19 @@ static void* thread_func(void* data)
         }
     }
 
+    // Test button to join the thread that generated the info above
+    GtkWidget* button = NULL;
+    button = gtk_button_new_with_label("Join thread (test)");
+    assert(button);
+
+    g_signal_connect(button, "clicked", G_CALLBACK(_Gui_JoinThread), my_app_config);
+    gtk_container_add(GTK_CONTAINER(sbox), button);
+    gtk_widget_set_name(button, "join_thread_test_button");
+
     gtk_widget_show_all(my_app_config->window);
-    free(board); // if not null it was malloc'ed ok
+    free(board);
     //    do_network(data, 0);
     return "thread_func launched ok";
-}
-
-static void* _Gui_RunChildThread(GtkWidget* widget, gpointer data)
-{
-    assert(data);
-    GuiRuntimeConfig* g_config = data;
-    assert(g_config->my_gui);
-    Thread* my_thread = NULL;
-
-    const gchar* board_name = gtk_widget_get_name(GTK_WIDGET(widget));
-    debug(3, "processing board %s\n", board_name);
-
-    memset(&g_config->WorkerData.board, 0, MAX_BOARD_NAME_LENGTH);
-    strncpy(g_config->WorkerData.board, board_name, strlen(board_name));
-    g_config->WorkerData.session = session;
-    debug(3, "passing %s(%s)\n", g_config->WorkerData.board, g_config->WorkerData.session.cookie);
-
-    if (((my_thread = Thread_Init(&thread_func, g_config)) == NULL)) {
-        debug(1, "cannot launch thread_func! %s\n", Gui_GetName(g_config->my_gui));
-    }
-    g_config->child_thread = my_thread;
-    //    do_network(my_config, 0);
-    return NULL;
 }
 
 static void _Gui_GetText(GtkEntry* entry, gpointer data)
@@ -241,8 +257,7 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
         if (text_type == Username) {
             // Make sure no overflow occurs
             assert(text_len < MAX_CRED_LENGTH);
-            debug(3, "read username %s\n", text);
-            g_print("%s \n", text);
+            debug(3, "Read username %s\n", text);
 
             if (strlen(creds.username)) {
                 memset(creds.username, 0, MAX_CRED_LENGTH);
@@ -252,8 +267,7 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
         } else if (text_type == Password) {
             // Make sure no overflow occurs
             assert(text_len < MAX_CRED_LENGTH);
-            debug(3, "read password %s\n", text);
-            g_print("%s \n", text);
+            debug(3, "Read password %s\n", text);
 
             if (strlen(creds.password)) {
                 memset(creds.password, 0, MAX_CRED_LENGTH);
@@ -261,33 +275,33 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
 
             strncpy(creds.password, text, text_len);
         } else {
-            debug(2, "text_type unknown %zu, doing nothing\n", text_type);
+            debug(1, "text_type unknown %zu, doing nothing\n", text_type);
         }
 
         if (strlen(session.cookie) == 0) {
             if (strlen(creds.username) && strlen(creds.password)) {
-                debug(3, "triggering session_init with user %s pass %s\n", creds.username, creds.password);
+                debug(3, "Triggering session_init with user %s pass %s\n", creds.username, creds.password);
 
-                size_t allowed = 0;
+                bool allowed = false;
                 for (size_t i = 0; i < ARRAY_SIZE(client_whitelisted_users); i++) {
                     if (strcmp(*(client_whitelisted_users + i), creds.username) == 0) {
-                        allowed = 1;
+                        allowed = true;
                     }
                 }
                 if (!allowed) {
-                    debug(1, "you are not whitelisted to use this client! %s", creds.username);
+                    debug(1, "You are not whitelisted to use this client! %s", creds.username);
                     return;
                 }
 
                 ssize_t session_res = 0;
                 if ((session_res = session_init(&creds, &session))) {
-                    debug(1, "was not able to trigger session_init with user %s pass %s (%zd)\n", creds.username, creds.password, session_res);
+                    debug(1, "Was not able to trigger session_init with user %s pass %s (%zd)\n", creds.username, creds.password, session_res);
                     return;
                 }
 
                 // No file was present and we are authenticating. Create a file
                 const char* fullpath = creds_file_path(true, false);
-                debug(3, "writing credentials to %s\n", fullpath);
+                debug(3, "Writing credentials to %s\n", fullpath);
 
                 const char* mode = "w";
                 FILE* file = NULL;
@@ -297,6 +311,7 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
                     return;
                 }
 
+                // Write to credentials file
                 char* content = malloc(MAX_ARBITRARY_CHAR_LENGTH);
                 assert(content);
                 memset(content, 0, MAX_ARBITRARY_CHAR_LENGTH);
@@ -306,61 +321,53 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
                 for (size_t i = 0; i <= MAX_NUM_OF_BOARDS; ++i) {
                     if (strlen(session.moder.boards[i])) {
                         char* add = NULL;
-                        add = malloc(15 + MAX_BOARD_NAME_LENGTH);
+                        add = malloc(MAX_ARBITRARY_CHAR_LENGTH);
                         assert(add);
-                        snprintf(add, 14 + MAX_BOARD_NAME_LENGTH, "board = %s\n", session.moder.boards[i]);
+                        snprintf(add, MAX_ARBITRARY_CHAR_LENGTH, "board = %s\n", session.moder.boards[i]);
                         strncat(content, add, strlen(add));
+                        free(add);
                     }
                 }
 
                 size_t ret = fwrite(content, sizeof(char), strlen(content), file);
                 if (!ret) {
                     debug(1, "fwrite(%s) cannot write to file\n", fullpath);
+                    fclose(file);
+                    free(content);
                     return;
                 }
 
-                free(content);
                 fclose(file);
+                free(content);
 
+                // Session populated
                 my_app_config->WorkerData.session = session;
+
                 _Gui_DrawMainScreen();
                 gtk_widget_show_all(my_app_config->window);
             }
         } else {
-            debug(4, "will not trigger session_init - have session present cookie %s user %s pass %s. Just re-launch an app to relogin\n", session.cookie, session.creds->username, session.creds->password);
+            debug(4, "Will not trigger session_init - have session present cookie %s user %s pass %s. Just re-launch an app to relogin\n", session.cookie, session.creds->username, session.creds->password);
         }
     }
 }
 
-static void _Gui_DrawMainScreen()
+static void _Gui_DrawMainScreen(void)
 {
     assert(my_app_config->window);
-    GtkWidget *box = NULL, *entry = NULL, *grid = NULL, *button = NULL, *scroll = NULL, *label = NULL;
+    GtkWidget *box = NULL, *button = NULL, *grid = NULL, *label = NULL;
 
-    if (GTK_IS_CONTAINER(my_app_config->window)) {
-        GList* children = gtk_container_get_children(GTK_CONTAINER(my_app_config->window));
-        fprintf(stdout, "checking child containers...\n");
-
-        for (const GList* iter = children; iter != NULL; iter = g_list_next(iter)) {
-            fprintf(stdout, "FOUND child...\n");
-            gtk_widget_destroy(GTK_WIDGET(iter->data));
-        }
-    }
+    _Gui_CleanMainChildren();
 
     // Main widget
-    box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 6);
+    box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
     assert(box);
-    gtk_container_set_border_width(GTK_CONTAINER(box), 7);
+
+    gtk_container_set_border_width(GTK_CONTAINER(box), 5);
     gtk_container_add(GTK_CONTAINER(my_app_config->window), box);
     gtk_widget_set_name(box, "main_box");
 
-    scroll = gtk_scrolled_window_new(NULL, NULL);
-    assert(scroll);
-    g_object_set(scroll, "shadow-type", GTK_SHADOW_IN, NULL);
-    gtk_container_set_border_width(GTK_CONTAINER(scroll), 17);
-    gtk_container_add(GTK_CONTAINER(box), scroll);
-    gtk_widget_set_name(scroll, "main_scroll");
-
+    // Grid
     grid = gtk_grid_new();
     assert(grid);
     gtk_container_add(GTK_CONTAINER(box), grid);
@@ -378,13 +385,14 @@ static void _Gui_DrawMainScreen()
         const char* fullpath = creds_file_path(false, false);
         assert(fullpath);
 
-        debug(3, "reading credentials from %s\n", fullpath);
+        debug(3, "Reading credentials from %s\n", fullpath);
 
         const char* opmode = "r";
         FILE* file = NULL;
 
         if ((file = fopen(fullpath, opmode)) == NULL) {
             debug(1, "fopen(%s) no file\n", fullpath);
+            return;
         }
 
         size_t buf_size = 1024; // FIXME: will overflow on large file
@@ -392,18 +400,22 @@ static void _Gui_DrawMainScreen()
         if (buf == NULL) {
             fprintf(stderr, "read_file malloc error\n");
             fclose(file);
+            free(buf);
+            return;
         }
 
         memset(buf, 0, buf_size);
 
         size_t ret = fread(buf, sizeof(char), buf_size, file);
         fclose(file);
+
         debug(4, "fread(%s) %zu bytes\n", fullpath, ret);
         if (ret < 32) {
             // no content was read in file or it seems corrupt
-            // remove it
-            debug(1, "No content was read! Is auth file corrupt? Removing %s\n", fullpath);
+            // remove it so it gets re-created on next app launch
+            debug(1, "No content was read or auth file corrupt? Removing %s\n", fullpath);
             fullpath = creds_file_path(false, true); // remove file
+            free(buf);
             return;
         }
 
@@ -413,10 +425,9 @@ static void _Gui_DrawMainScreen()
             if (sscanf(line, "cookie = %99s\n", session.cookie) == 1) { // read no more than 99 bytes
                 debug(3, "scanned cookie %s\n", session.cookie);
             }
-            // No need to scan creds (user/pass) -- creds struct was not allocated!!
 
             for (size_t i = 0; i <= MAX_NUM_OF_BOARDS; ++i) {
-                if (!strlen(session.moder.boards[i]) && sscanf(line, "board = %25s\n", session.moder.boards[i]) == 1) {
+                if (!strlen(session.moder.boards[i]) && sscanf(line, "board = %15s\n", session.moder.boards[i]) == 1) { // read no more than 15 bytes
                     debug(3, "scanned board %s\n", session.moder.boards[i]);
                     break;
                 }
@@ -430,28 +441,31 @@ static void _Gui_DrawMainScreen()
     }
 
     for (size_t i = 0; i < sizeof(session.moder.boards) / sizeof(*session.moder.boards); ++i) {
-        char* board_name = session.moder.boards[i];
+        char* board_name = (char*)session.moder.boards + (MAX_BOARD_NAME_LENGTH * i);
         if (strlen(board_name)) {
-            debug(3, "Adding button for (%zu) %s", i, (char*)session.moder.boards + (MAX_BOARD_NAME_LENGTH * i));
+            debug(3, "Adding button for (%zu) %s", i, board_name);
 
             button = gtk_button_new_with_label(board_name);
             assert(button);
+
+            // Fetch thread
             g_signal_connect(button, "clicked", G_CALLBACK(_Gui_RunChildThread), my_app_config);
-            gtk_grid_attach(GTK_GRID(grid), button, 0, i + 1, i + 1, i + 1);
+            gtk_grid_attach(GTK_GRID(grid), button, 0, i + 1, 1, 1);
             gtk_widget_set_name(button, board_name);
         }
     }
 }
 
-static void _Gui_DrawLoginInvitationScreen()
+static void _Gui_DrawLoginInvitationScreen(void)
 {
     assert(my_app_config->window);
-    GtkWidget *box = NULL, *grid = NULL, *button = NULL, *label = NULL;
+    GtkWidget *box = NULL, *button = NULL, *grid = NULL, *label = NULL;
 
     // Main widget
-    box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 1);
+    box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
     assert(box);
-    gtk_container_set_border_width(GTK_CONTAINER(box), 2);
+
+    gtk_container_set_border_width(GTK_CONTAINER(box), 5);
     gtk_container_add(GTK_CONTAINER(my_app_config->window), box);
     gtk_widget_set_name(box, "main_box");
 
@@ -484,10 +498,10 @@ static void _Gui_DrawLoginInvitationScreen()
 static void _Gui_WantAuthenticate(GtkWidget* widget, gpointer data)
 {
     assert(data);
-    GtkWidget *box = data, *grid = NULL, *label = NULL, *entry = NULL;
+    GtkWidget *box = data, *grid = NULL, *entry = NULL, *label = NULL;
 
     // For the program lifetime - we do not want to add form on each click
-    static size_t pressed = 0;
+    static bool pressed = false;
 
     if (!pressed) {
         // Grid
@@ -526,7 +540,7 @@ static void _Gui_WantAuthenticate(GtkWidget* widget, gpointer data)
         static size_t passmode = Password;
         g_signal_connect(GTK_ENTRY(entry), "activate", G_CALLBACK(_Gui_GetText), &passmode);
 
-        pressed = 1;
+        pressed = true;
 
         // redraw
         gtk_widget_show_all(box);
