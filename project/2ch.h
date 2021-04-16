@@ -15,8 +15,8 @@
 const char* client_whitelisted_users[] = { "Alexandr", "Shamil", "shamil1989" };
 
 typedef enum {
-    true = 1,
-    false
+    false,
+    true
 } bool;
 
 struct curl_string {
@@ -110,7 +110,7 @@ typedef struct {
 
     char email[MAX_ARBITRARY_CHAR_LENGTH];
 
-    file_t file[MAX_NUM_OF_FILES];
+    file_t file[MAX_NUM_OF_FILES]; // TBR - maybe need dynamic allocation
 
     size_t lasthit;
 

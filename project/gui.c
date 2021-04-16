@@ -38,7 +38,7 @@ Gui* Gui_Construct(config_t* config)
     my_app_config->my_gui = g;
     my_app_config->window = window;
 
-    if (local_credentials_file_present() == true) {
+    if (local_credentials_file_present()) {
         _Gui_DrawMainScreen();
     } else {
         _Gui_DrawLoginInvitationScreen();
