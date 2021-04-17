@@ -57,7 +57,6 @@ static bool _Gui_PopulateSessionFromFile(const char* fullpath, session_t* sessio
         fullpath = creds_file_path(false, true); // remove file
         free(buf);
         return false;
-        ;
     }
 
     char* strtok_saveptr = NULL;
@@ -132,11 +131,14 @@ static bool _Gui_DrawMainScreen(GuiRuntimeConfig* my_app_config, session_t* sess
     if (!strlen(session->cookie)) {
         // File is present - read it
         // Populate cookie and boards
-        const char* fullpath = creds_file_path(false, false);
+        char* fullpath = creds_file_path(false, false);
         assert(fullpath);
 
-        if (!_Gui_PopulateSessionFromFile(fullpath, session))
+        if (!_Gui_PopulateSessionFromFile(fullpath, session)) {
+            free(fullpath);
             return false;
+        }
+        free(fullpath);
     }
 
     for (size_t i = 0; i < sizeof(session->moder.boards) / sizeof(*session->moder.boards); ++i) {

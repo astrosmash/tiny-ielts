@@ -240,7 +240,8 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
                 my_app_config->WorkerData.session = session;
 
                 // No file was present and we are authenticating. Create a file
-                const char* fullpath = creds_file_path(true, false);
+                char* fullpath = creds_file_path(true, false);
+                assert(fullpath);
                 debug(3, "Writing credentials to %s\n", fullpath);
 
                 const char* mode = "w";
@@ -248,6 +249,7 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
 
                 if ((file = fopen(fullpath, mode)) == NULL) {
                     debug(1, "fopen(%s) cannot open file\n", fullpath);
+                    free(fullpath);
                     return;
                 }
 
@@ -270,11 +272,13 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
                     debug(1, "fwrite(%s) cannot write to file\n", fullpath);
                     fclose(file);
                     free(content);
+                    free(fullpath);
                     return;
                 }
 
                 fclose(file);
                 free(content);
+                free(fullpath);
 
                 if (!_Gui_DrawMainScreen(my_app_config, session))
                     return;

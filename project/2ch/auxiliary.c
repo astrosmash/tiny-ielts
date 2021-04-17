@@ -12,7 +12,7 @@ extern const char* get_homedir(void)
     return homedir;
 }
 
-extern const char* creds_file_path(bool need_to_create, bool need_to_delete)
+extern char* creds_file_path(bool need_to_create, bool need_to_delete)
 {
     assert(!(need_to_create && need_to_delete));
 
@@ -78,10 +78,8 @@ extern const char* creds_file_path(bool need_to_create, bool need_to_delete)
         }
     }
 
-    // copy result to stack
-    const char* ret = fullpath;
-    free(fullpath);
-    return ret;
+    // to be freed by caller.
+    return fullpath;
 }
 
 // Helper function for curl to write output.
