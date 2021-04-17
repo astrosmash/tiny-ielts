@@ -1,3 +1,133 @@
+// Authentication
+extern bool populate_session_from_file(session_t* session)
+{
+    assert(session);
+
+    char* fullpath = creds_file_path(false, false);
+    assert(fullpath);
+
+    debug(3, "Reading credentials from %s\n", fullpath);
+    const char* opmode = "r";
+    FILE* file = NULL;
+
+    if ((file = fopen(fullpath, opmode)) == NULL) {
+        debug(1, "fopen(%s) no file\n", fullpath);
+        free(fullpath);
+        return false;
+    }
+
+    size_t buf_size = 1024;
+    char* buf = (char*)malloc_memset(buf_size);
+    size_t ret = fread(buf, sizeof(char), buf_size, file);
+    fclose(file);
+
+    debug(4, "fread(%s) %zu bytes\n", fullpath, ret);
+
+    if (ret < 32) {
+        // no content was read in file or it seems corrupt
+        // remove it so it gets re-created on next app launch
+        debug(1, "No content was read or auth file corrupt? Removing %s\n", fullpath);
+        fullpath = creds_file_path(false, true); // remove file
+        free(buf);
+        free(fullpath);
+        return false;
+    }
+
+    char* strtok_saveptr = NULL;
+    char* line = strtok_r(buf, "\n", &strtok_saveptr);
+    while (line != NULL) {
+        if (sscanf(line, "cookie = %99s\n", session->cookie) == 1) { // read no more than 99 bytes
+            debug(3, "Scanned cookie %s\n", session->cookie);
+        }
+        if (sscanf(line, "username = %99s\n", session->creds->username) == 1) {
+            debug(3, "Scanned cookie %s\n", session->creds->username);
+        }
+        if (sscanf(line, "password = %99s\n", session->creds->password) == 1) {
+            debug(3, "Scanned cookie %s\n", session->creds->password);
+        }
+
+        for (size_t i = 0; i <= MAX_NUM_OF_BOARDS; ++i) {
+            if (!strlen(session->moder.boards[i]) && sscanf(line, "board = %15s\n", session->moder.boards[i]) == 1) {
+                debug(3, "Scanned board %s\n", session->moder.boards[i]);
+                break;
+            }
+        }
+        line = strtok_r(NULL, "\n", &strtok_saveptr);
+    }
+
+    debug(3, "Populated credentials cookie: %s\n", session->cookie);
+    free(buf);
+    free(fullpath);
+    return true;
+}
+
+// Refresh cookie and other contents in the file using session data
+extern bool populate_file_from_session(session_creds_t* creds, session_t* session)
+{
+    assert(creds);
+    assert(session);
+
+    debug(3, "Triggering session_init with user %s pass %s\n", creds->username, creds->password);
+
+    bool allowed = false;
+    for (size_t i = 0; i < ARRAY_SIZE(client_whitelisted_users); i++) {
+        if (strcmp(*(client_whitelisted_users + i), creds->username) == 0) {
+            allowed = true;
+        }
+    }
+    if (!allowed) {
+        debug(1, "You are not whitelisted to use this client! %s", creds->username);
+        return false;
+    }
+
+    ssize_t session_res = 0;
+    if ((session_res = session_init(creds, session))) {
+        debug(1, "Was not able to trigger session_init with user %s pass %s (%zd)\n", creds->username, creds->password, session_res);
+        return false;
+    }
+
+    // No file was present and we are authenticating. Create a file
+    char* fullpath = creds_file_path(true, false);
+    assert(fullpath);
+    debug(3, "Writing credentials to %s\n", fullpath);
+
+    const char* mode = "w";
+    FILE* file = NULL;
+
+    if ((file = fopen(fullpath, mode)) == NULL) {
+        debug(1, "fopen(%s) cannot open file\n", fullpath);
+        free(fullpath);
+        return false;
+    }
+
+    // Write to credentials file
+    char* content = malloc_memset(MAX_ARBITRARY_CHAR_LENGTH);
+    snprintf(content, MAX_ARBITRARY_CHAR_LENGTH - 2, "cookie = %s\nusername = %s\npassword = %s\n", session->cookie, session->creds->username, session->creds->password);
+
+    for (size_t i = 0; i <= MAX_NUM_OF_BOARDS; ++i) {
+        if (strlen(session->moder.boards[i])) {
+            char* add = malloc_memset(MAX_ARBITRARY_CHAR_LENGTH);
+            snprintf(add, MAX_ARBITRARY_CHAR_LENGTH, "board = %s\n", session->moder.boards[i]);
+            strncat(content, add, strlen(add));
+            free(add);
+        }
+    }
+
+    size_t ret = fwrite(content, sizeof(char), strlen(content), file);
+    if (!ret) {
+        debug(1, "fwrite(%s) cannot write to file\n", fullpath);
+        fclose(file);
+        free(content);
+        free(fullpath);
+        return false;
+    }
+
+    fclose(file);
+    free(content);
+    free(fullpath);
+    return true;
+}
+
 // Uses given credentials to login and obtain mod info to be later re-used.
 extern ssize_t session_init(session_creds_t* creds, session_t* session)
 {

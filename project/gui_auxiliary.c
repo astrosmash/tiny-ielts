@@ -29,57 +29,6 @@ static void _Gui_RunChildThread(GtkWidget* widget, gpointer data)
     }
 }
 
-static bool _Gui_PopulateSessionFromFile(const char* fullpath, session_t* session)
-{
-    assert(fullpath);
-    assert(session);
-
-    debug(3, "Reading credentials from %s\n", fullpath);
-    const char* opmode = "r";
-    FILE* file = NULL;
-
-    if ((file = fopen(fullpath, opmode)) == NULL) {
-        debug(1, "fopen(%s) no file\n", fullpath);
-        return false;
-    }
-
-    size_t buf_size = 1024;
-    char* buf = (char*)malloc_memset(buf_size);
-    size_t ret = fread(buf, sizeof(char), buf_size, file);
-    fclose(file);
-
-    debug(4, "fread(%s) %zu bytes\n", fullpath, ret);
-
-    if (ret < 32) {
-        // no content was read in file or it seems corrupt
-        // remove it so it gets re-created on next app launch
-        debug(1, "No content was read or auth file corrupt? Removing %s\n", fullpath);
-        fullpath = creds_file_path(false, true); // remove file
-        free(buf);
-        return false;
-    }
-
-    char* strtok_saveptr = NULL;
-    char* line = strtok_r(buf, "\n", &strtok_saveptr);
-    while (line != NULL) {
-        if (sscanf(line, "cookie = %99s\n", session->cookie) == 1) { // read no more than 99 bytes
-            debug(3, "Scanned cookie %s\n", session->cookie);
-        }
-
-        for (size_t i = 0; i <= MAX_NUM_OF_BOARDS; ++i) {
-            if (!strlen(session->moder.boards[i]) && sscanf(line, "board = %15s\n", session->moder.boards[i]) == 1) { // read no more than 15 bytes
-                debug(3, "Scanned board %s\n", session->moder.boards[i]);
-                break;
-            }
-        }
-        line = strtok_r(NULL, "\n", &strtok_saveptr);
-    }
-
-    debug(3, "Populated credentials cookie: %s\n", session->cookie);
-    free(buf);
-    return true;
-}
-
 // -------------------------------------------------- Drawings
 
 static void _Gui_CleanMainChildren(GtkWidget* window)
@@ -98,7 +47,7 @@ static void _Gui_CleanMainChildren(GtkWidget* window)
     }
 }
 
-static bool _Gui_DrawMainScreen(GuiRuntimeConfig* my_app_config, session_t* session)
+static bool _Gui_DrawMainScreen(GuiRuntimeConfig* my_app_config)
 {
     assert(my_app_config->window);
 
@@ -128,17 +77,14 @@ static bool _Gui_DrawMainScreen(GuiRuntimeConfig* my_app_config, session_t* sess
     gtk_grid_attach(GTK_GRID(grid), label, 0, 0, 1, 1);
     gtk_widget_set_name(label, "select_thread_label");
 
+    session_t* session = my_app_config->WorkerData.session;
+
     if (!strlen(session->cookie)) {
         // File is present - read it
         // Populate cookie and boards
-        char* fullpath = creds_file_path(false, false);
-        assert(fullpath);
-
-        if (!_Gui_PopulateSessionFromFile(fullpath, session)) {
-            free(fullpath);
+        if (!populate_session_from_file(session)) {
             return false;
         }
-        free(fullpath);
     }
 
     for (size_t i = 0; i < sizeof(session->moder.boards) / sizeof(*session->moder.boards); ++i) {

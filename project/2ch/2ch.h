@@ -19,6 +19,8 @@ static void dvach_populate_session(session_t*, cJSON*);
 static void dvach_populate_board(board_t*, cJSON*);
 
 // External
+extern bool populate_session_from_file(session_t*);
+extern bool populate_file_from_session(session_creds_t*, session_t*);
 extern ssize_t session_init(session_creds_t*, session_t*);
 extern board_t* fetch_board_info(session_t*, const char*);
 

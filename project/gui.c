@@ -16,6 +16,9 @@ Gui* Gui_Construct(void)
     // Allocate global state vars
     my_app_config = malloc_memset(sizeof(GuiRuntimeConfig));
     session = malloc_memset(sizeof(session_t));
+    creds = malloc_memset(sizeof(session_creds_t));
+    session->creds = creds;
+    my_app_config->WorkerData.session = session;
 
     // Start initialization
     GtkWidget* main_window = NULL;
@@ -38,9 +41,8 @@ Gui* Gui_Construct(void)
 
     // Just check if a file exists without removing/creating it.
     // Necessary checks will be performed later
-    if (creds_file_path(false, false) && _Gui_DrawMainScreen(my_app_config, session)) {
+    if (creds_file_path(false, false) && _Gui_DrawMainScreen(my_app_config)) {
         // Session populated
-        my_app_config->WorkerData.session = session;
     } else {
         _Gui_DrawLoginInvitationScreen(my_app_config);
     }
@@ -193,8 +195,8 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
     size_t text_len = strlen(text);
 
     if (text_len) {
-        if (!creds)
-            creds = malloc_memset(sizeof(session_creds_t));
+        //        if (!creds)
+        //            creds = malloc_memset(sizeof(session_creds_t));
 
         if (text_type == Username) {
             // Make sure no overflow occurs
@@ -218,72 +220,18 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
 
         if (strlen(session->cookie) == 0) {
             if (strlen(creds->username) && strlen(creds->password)) {
-                debug(3, "Triggering session_init with user %s pass %s\n", creds->username, creds->password);
 
-                bool allowed = false;
-                for (size_t i = 0; i < ARRAY_SIZE(client_whitelisted_users); i++) {
-                    if (strcmp(*(client_whitelisted_users + i), creds->username) == 0) {
-                        allowed = true;
-                    }
-                }
-                if (!allowed) {
-                    debug(1, "You are not whitelisted to use this client! %s", creds->username);
+                if (!populate_file_from_session(creds, session)) {
                     return;
                 }
 
-                ssize_t session_res = 0;
-
-                if ((session_res = session_init(creds, session))) {
-                    debug(1, "Was not able to trigger session_init with user %s pass %s (%zd)\n", creds->username, creds->password, session_res);
-                    return;
-                }
-                my_app_config->WorkerData.session = session;
-
-                // No file was present and we are authenticating. Create a file
-                char* fullpath = creds_file_path(true, false);
-                assert(fullpath);
-                debug(3, "Writing credentials to %s\n", fullpath);
-
-                const char* mode = "w";
-                FILE* file = NULL;
-
-                if ((file = fopen(fullpath, mode)) == NULL) {
-                    debug(1, "fopen(%s) cannot open file\n", fullpath);
-                    free(fullpath);
-                    return;
-                }
-
-                // Write to credentials file
-                char* content = malloc_memset(MAX_ARBITRARY_CHAR_LENGTH);
-
-                snprintf(content, MAX_ARBITRARY_CHAR_LENGTH - 2, "cookie = %s\nusername = %s\npassword = %s\n", session->cookie, session->creds->username, session->creds->password);
-
-                for (size_t i = 0; i <= MAX_NUM_OF_BOARDS; ++i) {
-                    if (strlen(session->moder.boards[i])) {
-                        char* add = malloc_memset(MAX_ARBITRARY_CHAR_LENGTH);
-                        snprintf(add, MAX_ARBITRARY_CHAR_LENGTH, "board = %s\n", session->moder.boards[i]);
-                        strncat(content, add, strlen(add));
-                        free(add);
-                    }
-                }
-
-                size_t ret = fwrite(content, sizeof(char), strlen(content), file);
-                if (!ret) {
-                    debug(1, "fwrite(%s) cannot write to file\n", fullpath);
-                    fclose(file);
-                    free(content);
-                    free(fullpath);
-                    return;
-                }
-
-                fclose(file);
-                free(content);
-                free(fullpath);
-
-                if (!_Gui_DrawMainScreen(my_app_config, session))
-                    return;
                 // Session populated
                 my_app_config->WorkerData.session = session;
+
+                if (!_Gui_DrawMainScreen(my_app_config)) {
+                    return;
+                }
+
                 gtk_widget_show_all(my_app_config->window);
             }
         } else {
