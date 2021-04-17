@@ -93,7 +93,7 @@ static bool _Gui_DrawMainScreen(GuiRuntimeConfig* my_app_config)
             button = gtk_button_new_with_label(board_name);
             assert(button);
 
-            // Fetch thread
+            // Fetch posts
             g_signal_connect(button, "clicked", G_CALLBACK(_Gui_RunChildThread), my_app_config);
             gtk_grid_attach(GTK_GRID(grid), button, 0, i + 1, 1, 1);
             gtk_widget_set_name(button, board_name);

@@ -216,8 +216,8 @@ extern board_t* fetch_board_info(session_t* session, const char* board_name)
 
     CURL* curl = NULL;
 
-    if (!snprintf(cookie, MAX_CRED_LENGTH - 2, "Cookie: %s", session->cookie)) {
-        debug(1, "Cannot assemble Cookie header %s", session->cookie);
+    if (!snprintf(cookie, MAX_CRED_LENGTH - 2, "Cookie: moder=%s", session->cookie)) {
+        debug(1, "Cannot assemble Cookie header moder=%s", session->cookie);
         goto cleanup;
     }
 
@@ -257,6 +257,88 @@ extern board_t* fetch_board_info(session_t* session, const char* board_name)
         }
 
         dvach_populate_board(board, parse_result);
+
+        cJSON_Delete(parse_result); // cjson checks for nullptr here
+    } else {
+        debug(1, "CURL got HTTP error code %zu result %s\n", curl_esponse_code, s.ptr);
+        goto cleanup;
+    }
+
+    free(cookie);
+    free(url);
+    free(s.ptr);
+    curl_easy_cleanup(curl);
+    return board; // to be freed by caller
+
+cleanup:
+    free(board);
+    free(cookie);
+    free(url);
+    free(s.ptr);
+    if (curl)
+        curl_easy_cleanup(curl);
+    return NULL;
+}
+
+// Populates board info from mod api.
+// Using mod cookie is mandatory.
+
+extern board_as_moder_t* fetch_board_info_as_moder(session_t* session, const char* board_name)
+{
+    assert(session);
+    assert(board_name);
+
+    board_as_moder_t* board = malloc_memset(sizeof(board_as_moder_t));
+    char* cookie = malloc_memset(MAX_CRED_LENGTH);
+    char* url = malloc_memset(MAX_CRED_LENGTH);
+
+    struct curl_string s = { .len = 0 };
+    s.ptr = malloc_memset(s.len + 1);
+    s.ptr[0] = '\0';
+
+    CURL* curl = NULL;
+
+    if (!snprintf(cookie, MAX_CRED_LENGTH - 2, "Cookie: moder=%s", session->cookie)) {
+        debug(1, "Cannot assemble Cookie header moder=%s", session->cookie);
+        goto cleanup;
+    }
+
+    if (!snprintf(url, MAX_CRED_LENGTH - 2, "https://beta.2ch.hk/moder/posts/%s?json=1", board_name)) {
+        debug(1, "Cannot assemble URL https://beta.2ch.hk/moder/posts/%s?json=1", board_name);
+        goto cleanup;
+    }
+
+    curl = dvach_curl_init(&s, cookie);
+    curl_easy_setopt(curl, CURLOPT_URL, url);
+
+    CURLcode res = curl_easy_perform(curl);
+    if (res != CURLE_OK) {
+        debug(1, "Got curl_easy_perform err %s\n", curl_easy_strerror(res));
+        goto cleanup;
+    }
+
+    size_t curl_esponse_code = 0;
+    res = curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &curl_esponse_code);
+    if (res != CURLE_OK) {
+        debug(1, "Got curl_easy_getinfo err %s\n", curl_easy_strerror(res));
+        goto cleanup;
+    }
+
+    if (curl_esponse_code == 200) {
+        debug(3, "%s CURL result %s\n", url, s.ptr);
+
+        cJSON* parse_result = NULL;
+        if ((parse_result = cJSON_Parse(s.ptr)) == NULL) {
+
+            const char* cjson_err = cJSON_GetErrorPtr();
+            if (cjson_err) {
+                debug(1, "cJSON err: %s", cjson_err);
+            }
+            cJSON_Delete(parse_result); // cjson checks for nullptr here
+            goto cleanup;
+        }
+
+        dvach_populate_board_as_moder(board_name, board, parse_result);
 
         cJSON_Delete(parse_result); // cjson checks for nullptr here
     } else {

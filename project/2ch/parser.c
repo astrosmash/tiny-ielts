@@ -389,3 +389,263 @@ static void dvach_populate_board(board_t* board, cJSON* parse_result)
         }
     }
 }
+
+// Populates allocated session struct with board info as moder from mod api.
+static void dvach_populate_board_as_moder(const char* board_name, board_as_moder_t* board, cJSON* parse_result)
+{
+    // All nullptr checks have been performed by caller
+    const cJSON* current_val = NULL;
+
+    const cJSON* ban_reason_obj = NULL;
+    const cJSON* ban_reason = NULL;
+    const cJSON* post_array = NULL;
+    const cJSON* post_obj = NULL;
+    const cJSON* file = NULL;
+    const cJSON* file_obj = NULL;
+
+    ban_reason_obj = cJSON_GetObjectItemCaseSensitive(parse_result, "banReasons");
+    if (cJSON_IsObject(ban_reason_obj)) {
+
+        cJSON_ArrayForEach(current_val, ban_reason_obj)
+        {
+            // Iterate over keys
+            const char* current_key = current_val->string;
+            if (current_key && strcmp(current_key, board_name) == 0) {
+                size_t curr_iteration = 0;
+
+                if (cJSON_IsArray(current_val)) {
+
+                    cJSON_ArrayForEach(ban_reason, current_val)
+                    {
+                        debug(4, "Processing ban reason for %s[%zu]\n", current_key, curr_iteration);
+                        char* trace = cJSON_Print(ban_reason);
+                        debug(5, "%s\n", trace);
+                        assert(curr_iteration < MAX_NUM_OF_BAN_REASONS);
+
+                        if (cJSON_IsString(ban_reason) && ban_reason->valuestring) {
+                            assert(strlen(ban_reason->valuestring) < MAX_ARBITRARY_CHAR_LENGTH);
+
+                            memcpy(&board->ban_reason[curr_iteration], ban_reason->valuestring, strlen(ban_reason->valuestring));
+                            const char null = '\0'; // add null terminator
+                            memcpy(&board->ban_reason[curr_iteration] + strlen(ban_reason->valuestring), &null, 1);
+
+                            debug(3, "Populated ban reason #%zu %s", curr_iteration, board->ban_reason[curr_iteration]);
+                            ++curr_iteration;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    post_array = cJSON_GetObjectItemCaseSensitive(parse_result, "posts");
+    if (cJSON_IsArray(post_array)) {
+
+        size_t curr_iteration = 0;
+        cJSON_ArrayForEach(post_obj, post_array)
+        {
+            if (cJSON_IsObject(post_obj)) {
+
+                cJSON_ArrayForEach(current_val, post_obj)
+                {
+                    // Iterate over keys
+                    const char* current_key = current_val->string;
+
+                    if (current_key) {
+                        debug(4, "Processing %s[%zu]\n", current_key, curr_iteration);
+                        char* trace = cJSON_Print(current_val);
+                        debug(5, "%s\n", trace);
+                        assert(curr_iteration < MAX_NUM_OF_POSTS_PER_BOARD_AS_MODER);
+
+                        // Start populating posts
+                        // Start comparing keys
+                        if (strcmp(current_key, "banned") == 0) {
+                            if (cJSON_IsNumber(current_val) && current_val->valueint) {
+                                board->post[curr_iteration].banned = current_val->valueint ? true : false;
+                                debug(3, "Got banned %u", board->post[curr_iteration].banned);
+                            }
+                        } else if (strcmp(current_key, "closed") == 0) {
+                            if (cJSON_IsNumber(current_val) && current_val->valueint) {
+                                board->post[curr_iteration].closed = current_val->valueint ? true : false;
+                                debug(3, "Got closed %u", board->post[curr_iteration].closed);
+                            }
+                        } else if (strcmp(current_key, "comment") == 0) {
+                            if (cJSON_IsString(current_val) && current_val->valuestring) {
+                                assert(strlen(current_val->valuestring) < 90 * MAX_ARBITRARY_CHAR_LENGTH);
+                                memcpy(&board->post[curr_iteration].comment, current_val->valuestring, strlen(current_val->valuestring));
+                                debug(3, "Got comment %s", board->post[curr_iteration].comment);
+                            }
+                        } else if (strcmp(current_key, "country") == 0) {
+                            if (cJSON_IsString(current_val) && current_val->valuestring) {
+                                assert(strlen(current_val->valuestring) < 3);
+                                memcpy(&board->post[curr_iteration].country, current_val->valuestring, strlen(current_val->valuestring));
+                                debug(3, "Got country %s", board->post[curr_iteration].country);
+                            }
+                        } else if (strcmp(current_key, "ip") == 0) {
+                            if (cJSON_IsString(current_val) && current_val->valuestring) {
+                                assert(strlen(current_val->valuestring) < 16);
+                                memcpy(&board->post[curr_iteration].ip, current_val->valuestring, strlen(current_val->valuestring));
+                                debug(3, "Got ip %s", board->post[curr_iteration].ip);
+                            }
+                        } else if (strcmp(current_key, "date") == 0) {
+                            if (cJSON_IsString(current_val) && current_val->valuestring) {
+                                assert(strlen(current_val->valuestring) < MAX_ARBITRARY_CHAR_LENGTH);
+                                memcpy(&board->post[curr_iteration].date, current_val->valuestring, strlen(current_val->valuestring));
+                                debug(3, "Got date %s", board->post[curr_iteration].date);
+                            }
+                        } else if (strcmp(current_key, "email") == 0) {
+                            if (cJSON_IsString(current_val) && current_val->valuestring) {
+                                assert(strlen(current_val->valuestring) < MAX_ARBITRARY_CHAR_LENGTH);
+                                memcpy(&board->post[curr_iteration].email, current_val->valuestring, strlen(current_val->valuestring));
+                                debug(3, "Got email %s", board->post[curr_iteration].email);
+                            }
+                        } else if (strcmp(current_key, "files") == 0) {
+                            if (cJSON_IsArray(current_val)) {
+                                size_t file_curr_iteration = 0;
+
+                                cJSON_ArrayForEach(file_obj, current_val)
+                                {
+                                    debug(4, "Processing file array for %zu[%zu]\n", curr_iteration, file_curr_iteration);
+                                    if (cJSON_IsObject(file_obj)) {
+
+                                        cJSON_ArrayForEach(file, file_obj)
+                                        {
+                                            // Iterate over keys
+                                            const char* file_current_key = file->string;
+
+                                            if (file_current_key) {
+                                                assert(file_curr_iteration < MAX_NUM_OF_FILES);
+
+                                                // Start populating files on the thread
+                                                // Start comparing keys
+                                                if (strcmp(file_current_key, "path") == 0) {
+                                                    if (cJSON_IsString(file) && file->valuestring) {
+                                                        assert(strlen(file->valuestring) < MAX_ARBITRARY_CHAR_LENGTH);
+                                                        memcpy(&board->post[curr_iteration].file[file_curr_iteration].path, file->valuestring, strlen(file->valuestring));
+                                                        debug(3, "Got file path %s\n", board->post[curr_iteration].file[file_curr_iteration].path);
+                                                    }
+                                                } else if (strcmp(file_current_key, "displayname") == 0) {
+                                                    if (cJSON_IsString(file) && file->valuestring) {
+                                                        assert(strlen(file->valuestring) < MAX_ARBITRARY_CHAR_LENGTH);
+                                                        memcpy(&board->post[curr_iteration].file[file_curr_iteration].displayname, file->valuestring, strlen(file->valuestring));
+                                                        debug(3, "Got file displayname %s\n", board->post[curr_iteration].file[file_curr_iteration].displayname);
+                                                    }
+                                                } else if (strcmp(file_current_key, "fullname") == 0) {
+                                                    if (cJSON_IsString(file) && file->valuestring) {
+                                                        assert(strlen(file->valuestring) < MAX_ARBITRARY_CHAR_LENGTH);
+                                                        memcpy(&board->post[curr_iteration].file[file_curr_iteration].fullname, file->valuestring, strlen(file->valuestring));
+                                                        debug(3, "Got file fullname %s\n", board->post[curr_iteration].file[file_curr_iteration].fullname);
+                                                    }
+                                                } else if (strcmp(file_current_key, "md5") == 0) {
+                                                    if (cJSON_IsString(file) && file->valuestring) {
+                                                        assert(strlen(file->valuestring) < MAX_ARBITRARY_CHAR_LENGTH);
+                                                        memcpy(&board->post[curr_iteration].file[file_curr_iteration].md5, file->valuestring, strlen(file->valuestring));
+                                                        debug(3, "Got file md5 %s\n", board->post[curr_iteration].file[file_curr_iteration].md5);
+                                                    }
+                                                } else if (strcmp(file_current_key, "name") == 0) {
+                                                    if (cJSON_IsString(file) && file->valuestring) {
+                                                        assert(strlen(file->valuestring) < MAX_ARBITRARY_CHAR_LENGTH);
+                                                        memcpy(&board->post[curr_iteration].file[file_curr_iteration].name, file->valuestring, strlen(file->valuestring));
+                                                        debug(3, "Got file name %s\n", board->post[curr_iteration].file[file_curr_iteration].name);
+                                                    }
+                                                } else if (strcmp(file_current_key, "thumbnail") == 0) {
+                                                    if (cJSON_IsString(file) && file->valuestring) {
+                                                        assert(strlen(file->valuestring) < MAX_ARBITRARY_CHAR_LENGTH);
+                                                        memcpy(&board->post[curr_iteration].file[file_curr_iteration].thumbnail, file->valuestring, strlen(file->valuestring));
+                                                        debug(3, "Got file thumbnail %s\n", board->post[curr_iteration].file[file_curr_iteration].thumbnail);
+                                                    }
+                                                } else if (strcmp(file_current_key, "height") == 0) {
+                                                    if (cJSON_IsNumber(file) && file->valueint) {
+                                                        board->post[curr_iteration].file[file_curr_iteration].height = file->valueint;
+                                                        debug(3, "Got file height %zu\n", board->post[curr_iteration].file[file_curr_iteration].height);
+                                                    }
+                                                } else if (strcmp(file_current_key, "width") == 0) {
+                                                    if (cJSON_IsNumber(file) && file->valueint) {
+                                                        board->post[curr_iteration].file[file_curr_iteration].width = file->valueint;
+                                                        debug(3, "Got file width %zu\n", board->post[curr_iteration].file[file_curr_iteration].width);
+                                                    }
+                                                } else if (strcmp(file_current_key, "height") == 0) {
+                                                    if (cJSON_IsNumber(file) && file->valueint) {
+                                                        board->post[curr_iteration].file[file_curr_iteration].height = file->valueint;
+                                                        debug(3, "Got file height %zu\n", board->post[curr_iteration].file[file_curr_iteration].height);
+                                                    }
+                                                } else if (strcmp(file_current_key, "size") == 0) {
+                                                    if (cJSON_IsNumber(file) && file->valueint) {
+                                                        board->post[curr_iteration].file[file_curr_iteration].size = file->valueint;
+                                                        debug(3, "Got file size %zu\n", board->post[curr_iteration].file[file_curr_iteration].size);
+                                                    }
+                                                } else if (strcmp(file_current_key, "tn_height") == 0) {
+                                                    if (cJSON_IsNumber(file) && file->valueint) {
+                                                        board->post[curr_iteration].file[file_curr_iteration].tn_height = file->valueint;
+                                                        debug(3, "Got file tn_height %zu\n", board->post[curr_iteration].file[file_curr_iteration].tn_height);
+                                                    }
+                                                } else if (strcmp(file_current_key, "tn_width") == 0) {
+                                                    if (cJSON_IsNumber(file) && file->valueint) {
+                                                        board->post[curr_iteration].file[file_curr_iteration].tn_width = file->valueint;
+                                                        debug(3, "Got file tn_width %zu\n", board->post[curr_iteration].file[file_curr_iteration].tn_width);
+                                                    }
+                                                } else if (strcmp(file_current_key, "type") == 0) {
+                                                    if (cJSON_IsNumber(file) && file->valueint) {
+                                                        board->post[curr_iteration].file[file_curr_iteration].type = file->valueint;
+                                                        debug(3, "Got file type %zu\n", board->post[curr_iteration].file[file_curr_iteration].type);
+                                                    }
+                                                } else {
+                                                    debug(2, "Skipping file key %s\n", file_current_key);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    ++file_curr_iteration;
+                                }
+                            }
+                        } else if (strcmp(current_key, "lasthit") == 0) {
+                            if (cJSON_IsNumber(current_val) && current_val->valueint) {
+                                board->post[curr_iteration].lasthit = current_val->valueint;
+                                debug(3, "Got lasthit %zu\n", board->post[curr_iteration].lasthit);
+                            }
+                        } else if (strcmp(current_key, "posts_count") == 0) {
+                            if (cJSON_IsNumber(current_val) && current_val->valueint) {
+                                board->post[curr_iteration].posts_count = current_val->valueint;
+                                debug(3, "Got posts_count %zu\n", board->post[curr_iteration].posts_count);
+                            }
+                        } else if (strcmp(current_key, "num") == 0) {
+                            if (cJSON_IsString(current_val) && current_val->valuestring) {
+                                board->post[curr_iteration].num = atoi(current_val->valuestring);
+                                debug(3, "Got num %zu\n", board->post[curr_iteration].num);
+                            }
+                        } else if (strcmp(current_key, "sticky") == 0) {
+                            if (cJSON_IsNumber(current_val) && current_val->valueint) {
+                                board->post[curr_iteration].sticky = current_val->valueint ? true : false;
+                                debug(3, "Got sticky %u\n", board->post[curr_iteration].sticky);
+                            }
+                        } else if (strcmp(current_key, "op") == 0) {
+                            if (cJSON_IsNumber(current_val) && current_val->valueint) {
+                                board->post[curr_iteration].op = current_val->valueint ? true : false;
+                                debug(3, "Got op %u\n", board->post[curr_iteration].op);
+                            }
+                        } else if (strcmp(current_key, "timestamp") == 0) {
+                            if (cJSON_IsNumber(current_val) && current_val->valueint) {
+                                board->post[curr_iteration].timestamp = current_val->valueint;
+                                debug(3, "Got timestamp %zu\n", board->post[curr_iteration].timestamp);
+                            }
+                        } else if (strcmp(current_key, "parent") == 0) {
+                            if (cJSON_IsNumber(current_val) && current_val->valueint) {
+                                board->post[curr_iteration].parent = current_val->valueint;
+                                debug(3, "Got parent %zu\n", board->post[curr_iteration].parent);
+                            }
+                        } else if (strcmp(current_key, "subject") == 0) {
+                            if (cJSON_IsString(current_val) && current_val->valuestring) {
+                                assert(strlen(current_val->valuestring) < MAX_ARBITRARY_CHAR_LENGTH);
+                                memcpy(&board->post[curr_iteration].subject, current_val->valuestring, strlen(current_val->valuestring));
+                                debug(3, "Got subject %s\n", board->post[curr_iteration].subject);
+                            }
+                        } else {
+                            debug(2, "Skipping thread key %s\n", current_key);
+                        }
+                    }
+                }
+            }
+            ++curr_iteration;
+        }
+    }
+}

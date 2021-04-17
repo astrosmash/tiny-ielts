@@ -100,6 +100,11 @@ typedef struct {
 
     bool op;
 
+    // Modinfo
+    char country[3];
+
+    char ip[16];
+
 } post_t;
 
 typedef post_t thread_t;
@@ -114,3 +119,10 @@ typedef struct {
     thread_t thread[MAX_NUM_OF_THREADS]; // TBR - maybe need dynamic allocation
 
 } board_t;
+
+typedef struct {
+    char ban_reason[MAX_NUM_OF_BAN_REASONS][MAX_ARBITRARY_CHAR_LENGTH];
+
+    post_t post[MAX_NUM_OF_POSTS_PER_BOARD_AS_MODER];
+
+} board_as_moder_t;

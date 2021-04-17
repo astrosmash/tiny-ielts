@@ -112,7 +112,7 @@ static void* thread_func(void* data)
     debug(3, "thread_func launched ok! %s\n", Gui_GetName(g_config->my_gui));
     debug(3, "passing board %s (cookie %s)\n", g_config->WorkerData.board, g_config->WorkerData.session->cookie);
 
-    board_t* board = fetch_board_info(g_config->WorkerData.session, g_config->WorkerData.board);
+    board_as_moder_t* board = fetch_board_info_as_moder(g_config->WorkerData.session, g_config->WorkerData.board);
     assert(board);
 
     assert(my_app_config->window);
@@ -120,7 +120,7 @@ static void* thread_func(void* data)
     //_Gui_CleanMainChildren(); // this should happen only once!
 
     // Start drawing result
-    GtkWidget *grid = NULL, *label = NULL, *sbox = NULL, *scroll = NULL;
+    GtkWidget *grid = NULL, *label = NULL, *sbox = NULL, *scroll = NULL, *button = NULL;
 
     scroll = gtk_scrolled_window_new(NULL, NULL);
     assert(scroll);
@@ -145,17 +145,17 @@ static void* thread_func(void* data)
     sbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
     assert(sbox);
 
-    for (size_t i = 0; i < sizeof(board->thread) / sizeof(*board->thread); ++i) {
+    for (size_t i = 0; i < sizeof(board->post) / sizeof(*board->post); ++i) {
         // Start drawing threads
-        size_t thread_num = board->thread[i].num;
+        size_t post_num = board->post[i].num;
         //        size_t thread_posts_count = board->thread[i].posts_count;
-        char* thread_subject = board->thread[i].subject;
-        //        char* thread_date = board->thread[i].date;
+        char* post_comment = board->post[i].comment;
+        char* country = board->post[i].country;
 
-        if (strlen(thread_subject)) {
-            debug(3, "Adding view for (%zu) %s/%zu\n", i, thread_subject, thread_num);
+        if (strlen(post_comment)) {
+            debug(3, "Adding view for (%zu) %s/%zu\n", i, post_comment, post_num);
 
-            label = gtk_label_new(thread_subject);
+            label = gtk_label_new(post_comment);
             assert(label);
 
             //            gtk_widget_set_name(label, thread_subject);
@@ -163,6 +163,13 @@ static void* thread_func(void* data)
             //            gtk_label_set_line_wrap(GTK_LABEL(label), FALSE);
 
             gtk_container_add(GTK_CONTAINER(sbox), label);
+
+            button = gtk_button_new_with_label(country);
+            assert(button);
+
+            g_signal_connect(button, "clicked", G_CALLBACK(_Gui_Exit), NULL);
+            gtk_container_add(GTK_CONTAINER(sbox), button);
+            //            gtk_widget_set_name(button, "join_thread_test_button");
         }
     }
 
