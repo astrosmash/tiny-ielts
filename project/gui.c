@@ -225,9 +225,6 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
                     return;
                 }
 
-                // Session populated
-                my_app_config->WorkerData.session = session;
-
                 if (!_Gui_DrawMainScreen(my_app_config)) {
                     return;
                 }

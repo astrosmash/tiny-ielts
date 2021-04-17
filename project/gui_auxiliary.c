@@ -50,10 +50,9 @@ static void _Gui_CleanMainChildren(GtkWidget* window)
 static bool _Gui_DrawMainScreen(GuiRuntimeConfig* my_app_config)
 {
     assert(my_app_config->window);
+    _Gui_CleanMainChildren(my_app_config->window);
 
     GtkWidget *box = NULL, *button = NULL, *grid = NULL, *label = NULL;
-
-    _Gui_CleanMainChildren(my_app_config->window);
 
     // Main widget
     box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
