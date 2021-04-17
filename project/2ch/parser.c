@@ -609,8 +609,8 @@ static void dvach_populate_board_as_moder(const char* board_name, board_as_moder
                                 debug(3, "Got posts_count %zu\n", board->post[curr_iteration].posts_count);
                             }
                         } else if (strcmp(current_key, "num") == 0) {
-                            if (cJSON_IsString(current_val) && current_val->valuestring) {
-                                board->post[curr_iteration].num = atoi(current_val->valuestring);
+                            if (cJSON_IsNumber(current_val) && current_val->valueint) {
+                                board->post[curr_iteration].num = current_val->valueint;
                                 debug(3, "Got num %zu\n", board->post[curr_iteration].num);
                             }
                         } else if (strcmp(current_key, "sticky") == 0) {

@@ -27,6 +27,9 @@ static void _Gui_RunChildThread(GtkWidget* widget, gpointer data)
     } else {
         debug(1, "Failed to join thread %s\n", Gui_GetName(g_config->my_gui));
     }
+
+    // Free an object allocated in the thread_func
+    free(thread_result);
 }
 
 // -------------------------------------------------- Drawings
@@ -45,6 +48,22 @@ static void _Gui_CleanMainChildren(GtkWidget* window)
             gtk_widget_destroy(GTK_WIDGET(iter->data));
         }
     }
+}
+
+static bool _Gui_DrawPopup(GtkWidget* widget, GdkEvent* event)
+{
+    assert(widget);
+    assert(event);
+
+    if (event->type == GDK_BUTTON_PRESS) {
+        GdkEventButton* bevent = (GdkEventButton*)event;
+        if (bevent->button == 3) { // Right mouse click
+            gtk_menu_popup(GTK_MENU(widget), NULL, NULL, NULL, NULL,
+                bevent->button, bevent->time);
+        }
+        return true;
+    }
+    return false;
 }
 
 static bool _Gui_DrawMainScreen(GuiRuntimeConfig* my_app_config)
@@ -143,7 +162,7 @@ static void _Gui_DrawLoginInvitationScreen(GuiRuntimeConfig* my_app_config)
 static void _Gui_WantAuthenticate(GtkWidget* widget, gpointer data)
 {
     assert(data);
-    GtkWidget *box = data, *grid = NULL, *entry = NULL, *label = NULL;
+    GtkWidget *box = data, *grid = NULL, *label = NUL, *username_entry = NULL, *password_entry = NULL;
 
     // For the program lifetime - we do not want to add form on each click
     static bool pressed = false;
@@ -162,13 +181,10 @@ static void _Gui_WantAuthenticate(GtkWidget* widget, gpointer data)
         gtk_grid_attach(GTK_GRID(grid), label, 0, 3, 1, 1);
         gtk_widget_set_name(label, "username_label");
 
-        entry = gtk_entry_new();
-        assert(entry);
-        gtk_grid_attach(GTK_GRID(grid), entry, 0, 4, 1, 1);
-        gtk_widget_set_name(entry, "username_entry");
-
-        static size_t usermode = Username;
-        g_signal_connect(GTK_ENTRY(entry), "activate", G_CALLBACK(_Gui_GetText), &usermode);
+        username_entry = gtk_entry_new();
+        assert(username_entry);
+        gtk_grid_attach(GTK_GRID(grid), username_entry, 0, 4, 1, 1);
+        gtk_widget_set_name(username_entry, "username_entry");
 
         label = gtk_label_new("Password");
         assert(label);
@@ -177,13 +193,17 @@ static void _Gui_WantAuthenticate(GtkWidget* widget, gpointer data)
         gtk_grid_attach(GTK_GRID(grid), label, 0, 5, 1, 1);
         gtk_widget_set_name(label, "password_label");
 
-        entry = gtk_entry_new();
-        assert(entry);
-        gtk_grid_attach(GTK_GRID(grid), entry, 0, 6, 1, 1);
-        gtk_widget_set_name(entry, "password_entry");
+        password_entry = gtk_entry_new();
+        assert(password_entry);
+        gtk_grid_attach(GTK_GRID(grid), password_entry, 0, 6, 1, 1);
+        gtk_widget_set_name(password_entry, "password_entry");
 
-        static size_t passmode = Password;
-        g_signal_connect(GTK_ENTRY(entry), "activate", G_CALLBACK(_Gui_GetText), &passmode);
+        struct GtkEntries* entries = malloc_memset(sizeof(struct GtkEntries)); // to be freed by _Gui_GetText
+        entries->entry[0] = username_entry;
+        entries->entry[1] = password_entry;
+
+        g_signal_connect(GTK_ENTRY(username_entry), "activate", G_CALLBACK(_Gui_GetText), entries);
+        g_signal_connect(GTK_ENTRY(password_entry), "activate", G_CALLBACK(_Gui_GetText), entries);
 
         pressed = true;
 

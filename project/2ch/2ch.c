@@ -40,10 +40,10 @@ extern bool populate_session_from_file(session_t* session)
             debug(3, "Scanned cookie %s\n", session->cookie);
         }
         if (sscanf(line, "username = %99s\n", session->creds->username) == 1) {
-            debug(3, "Scanned cookie %s\n", session->creds->username);
+            debug(3, "Scanned username %s\n", session->creds->username);
         }
         if (sscanf(line, "password = %99s\n", session->creds->password) == 1) {
-            debug(3, "Scanned cookie %s\n", session->creds->password);
+            debug(3, "Scanned password %s\n", session->creds->password);
         }
 
         for (size_t i = 0; i <= MAX_NUM_OF_BOARDS; ++i) {

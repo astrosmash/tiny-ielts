@@ -20,10 +20,9 @@ typedef struct {
     } WorkerData;
 } GuiRuntimeConfig;
 
-enum {
-    Username = 1,
-    Password,
-} _Gui_GetText_Type;
+struct GtkEntries {
+    GtkWidget* entry[2];
+};
 
 // Gui ctor & dtor
 Gui* Gui_Construct(void);

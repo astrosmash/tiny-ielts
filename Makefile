@@ -19,7 +19,7 @@ CLANG_FLAGS_PROJECT += -L$(PROJECT_SRC_DIR) $(CLANG_FLAGS_COMMON) $(GTK_CFLAGS) 
 CLANG_INCLUDES_PROJECT += $(CLANG_INCLUDES_COMMON) $(GTK_INCLUDE)
 
 NPROC := $(shell nproc)
-PROJECT_FILES := $(shell find $(PROJECT_SRC_DIR) -type f)
+PROJECT_FILES := $(shell find $(PROJECT_SRC_DIR) -type f -name "*.c" -or -name "*.h")
 
 CURRENT_KERNEL := $(shell uname -r | sed "s/[-].*$\//")
 PROJECT_OBJECT := output_bin
