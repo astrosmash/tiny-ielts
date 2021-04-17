@@ -162,7 +162,7 @@ static void _Gui_DrawLoginInvitationScreen(GuiRuntimeConfig* my_app_config)
 static void _Gui_WantAuthenticate(GtkWidget* widget, gpointer data)
 {
     assert(data);
-    GtkWidget *box = data, *grid = NULL, *label = NUL, *username_entry = NULL, *password_entry = NULL;
+    GtkWidget *box = data, *grid = NULL, *label = NULL, *username_entry = NULL, *password_entry = NULL;
 
     // For the program lifetime - we do not want to add form on each click
     static bool pressed = false;
