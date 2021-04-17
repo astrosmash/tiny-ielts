@@ -13,25 +13,16 @@
 // Data structures
 #include "structs.h"
 
-// Functions and methods
-// Internal
-static void dvach_populate_session(session_t*, cJSON*);
-static void dvach_populate_board(board_t*, cJSON*);
+// Functions to populate allocated data structures
+#include "parser.h"
 
+// Functions and methods
 // External
 extern bool populate_session_from_file(session_t*);
 extern bool populate_file_from_session(session_creds_t*, session_t*);
 extern ssize_t session_init(session_creds_t*, session_t*);
 extern board_t* fetch_board_info(session_t*, const char*);
 
-// TODO
-//extern post_t* fetch_all_posts_from_board(session_t*, board_t*);
-//extern thread_t* fetch_thread_from_board(session_t*, board_t*);
-//extern post_t* fetch_post_from_thread(session_t*, thread_t*);
-//extern file_t* fetch_file_from_post(session_t*, post_t*);
 
 // Definition
 #include "2ch.c"
-
-// Functions to populate allocated data structures
-#include "parser.c"
