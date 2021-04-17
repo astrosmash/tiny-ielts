@@ -1,0 +1,3 @@
+[submodule "project/data/country-flags"]
+	path = project/data/country-flags
+	url = https://github.com/hampusborgos/country-flags
