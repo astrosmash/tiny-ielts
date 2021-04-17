@@ -9,23 +9,12 @@
 #include <time.h>
 #include <unistd.h>
 
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/select.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
 
 #include <cairo.h>
 #include <cjson/cJSON.h>
 #include <curl/curl.h>
 #include <gtk/gtk.h>
-
-#ifdef __linux__
-#include <sys/epoll.h>
-#include <sys/select.h>
-#endif
-
-void* malloc_memset(size_t);
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
@@ -44,6 +33,8 @@ void* malloc_memset(size_t);
 // Include debug output
 #define DEBUG 1
 #define DEBUG_LEVEL 5
+
+void* malloc_memset(size_t);
 
 #include "2ch/2ch.h"
 #include "gui.h"

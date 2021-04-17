@@ -28,8 +28,8 @@ int main(int argc, char** argv)
     }
 
     if (gui) {
-        gtk_init(&argc, &argv);
         curl_global_init(CURL_GLOBAL_DEFAULT);
+        gtk_init(&argc, &argv);
 
         Gui* main_gui = NULL;
         if (((main_gui = Gui_Init()) == NULL)) {
@@ -39,8 +39,8 @@ int main(int argc, char** argv)
         fprintf(stdout, "GUI launched\n");
 
         gtk_main();
+        curl_global_cleanup();
     }
 
-    curl_global_cleanup();
     exit(EXIT_SUCCESS);
 }

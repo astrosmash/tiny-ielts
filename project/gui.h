@@ -1,5 +1,4 @@
 #include "thread.h"
-
 // class Gui
 #define maxGuiNameLength 255
 
@@ -38,19 +37,15 @@ static void _Gui_SetName(Gui*, char*);
 
 // Static methods
 // Callback for exit button that calls dtor, called with swapped params
-static void Gui_Exit(gpointer, GtkWidget*);
+static void _Gui_Exit(gpointer, GtkWidget*);
 
-static void _Gui_CleanMainChildren(void);
-
-static void _Gui_DrawLoginInvitationScreen(void);
-static void _Gui_DrawMainScreen(void);
 static void _Gui_GetText(GtkEntry*, gpointer);
-static void _Gui_WantAuthenticate(GtkWidget*, gpointer);
 
 static void _Gui_RunChildThread(GtkWidget*, gpointer);
-static void _Gui_JoinThread(GtkWidget*, gpointer);
 
 static void* thread_func(void*);
+
+#include "gui_auxiliary.h"
 
 // Definition
 #include "gui.c"

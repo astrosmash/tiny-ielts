@@ -11,13 +11,6 @@ PROJECT_SRC_DIR ?= $(THIS_DIR)project
 CLANG_FLAGS_COMMON += -D__NR_CPUS__=$(NPROC) -O2
 CLANG_INCLUDES_COMMON += -I. -I$(PROJECT_SRC_DIR)/libbpf/include
 
-UNAME_S := $(shell uname -s)
-ifeq ($(UNAME_S), Darwin)
-CJSON := cJSON
-else
-CJSON := cjson
-endif
-
 GTK := gtk+-3.0
 GTK_CFLAGS := $(shell pkg-config --cflags $(GTK))
 GTK_INCLUDE := $(shell pkg-config --libs $(GTK))
@@ -39,11 +32,14 @@ all: build
 installation_doc:
 	echo "hi $(CURRENT_KERNEL)\n";
 
+UNAME_S := $(shell uname -s)
 # Verify that compiler and tools are available
 ifeq ($(UNAME_S), Darwin)
+CJSON := cJSON
 .PHONY: verify_cmds $(CLANG) $(CPPCHECK) $(CLANG-FORMAT) $(GCC)
 verify_cmds: $(CLANG) $(CPPCHECK) $(CLANG-FORMAT) $(GCC)
 else
+CJSON := cjson
 .PHONY: verify_cmds $(CLANG) $(CPPCHECK) $(CLANG-FORMAT) $(GCC) $(SCAN-BUILD) $(VALGRIND)
 verify_cmds: $(CLANG) $(CPPCHECK) $(CLANG-FORMAT) $(GCC) $(SCAN-BUILD) $(VALGRIND)
 endif
@@ -76,12 +72,6 @@ format: verify_cmds
 			exit 3; \
 		else true; fi; \
 	done
-
-mem_sanitize: verify_cmds
-	@if ! ($(VALGRIND) -v --track-origins=yes --leak-check=full --show-leak-kinds=all  $(THIS_DIR)$(PROJECT_OBJECT) -c $(THIS_DIR)config.conf -tw 222) ; then \
-                echo "*** ERROR: valgrind failed" ;\
-                exit 2; \
-        else true; fi
 
 build: $(CLANG)
 	$(CLANG) $(CLANG_FLAGS_PROJECT) $(CLANG_INCLUDES_PROJECT) $(PROJECT_SRC_DIR)/main.c -o $(PROJECT_OBJECT)
