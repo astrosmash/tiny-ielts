@@ -370,3 +370,105 @@ cleanup:
 //extern post_t* fetch_post_from_thread(session_t* session, thread_t* thread) {}
 //
 //extern file_t* fetch_file_from_post(session_t* session, post_t* post) {}
+
+extern void remove_post(GtkWidget* widget, gpointer data)
+{
+    assert(data);
+    struct g_callback_task* task = data;
+}
+
+extern void add_local_ban(GtkWidget* widget, gpointer data)
+{
+    assert(data);
+    struct g_callback_task* task = data;
+}
+
+extern void whois(GtkWidget* widget, gpointer data)
+{
+    assert(data);
+    struct g_callback_task* task = data;
+    assert(task->what);
+    const char* ip = task->what;
+    debug(3, "Performing whois for %s\n", ip);
+
+    char* url = malloc_memset(MAX_CRED_LENGTH);
+
+    struct curl_string s = { .len = 0 };
+    s.ptr = malloc_memset(s.len + 1);
+    s.ptr[0] = '\0';
+
+    CURL* curl = NULL;
+
+    if (!snprintf(url, MAX_CRED_LENGTH - 2, "http://ipwhois.app/line/%s", ip)) {
+        debug(1, "Cannot assemble URL http://ipwhois.app/line/%s", ip);
+        free(url);
+        free(s.ptr);
+        return;
+    }
+
+    curl = dvach_curl_init(&s, "no cookie"); // no cookie
+    curl_easy_setopt(curl, CURLOPT_URL, url);
+
+    CURLcode res = curl_easy_perform(curl);
+    if (res != CURLE_OK) {
+        debug(1, "Got curl_easy_perform err %s\n", curl_easy_strerror(res));
+        free(url);
+        free(s.ptr);
+        curl_easy_cleanup(curl);
+        return;
+    }
+
+    size_t curl_esponse_code = 0;
+    res = curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &curl_esponse_code);
+    if (res != CURLE_OK) {
+        debug(1, "Got curl_easy_getinfo err %s\n", curl_easy_strerror(res));
+        free(url);
+        free(s.ptr);
+        curl_easy_cleanup(curl);
+        return;
+    }
+
+    if (curl_esponse_code == 200) {
+        debug(3, "%s CURL result %s\n", url, s.ptr);
+
+        GtkWidget *dialog, *label, *content_area;
+        GtkDialogFlags flags;
+
+        // Create the widgets
+        flags = GTK_DIALOG_DESTROY_WITH_PARENT;
+        dialog = gtk_dialog_new_with_buttons("Message",
+            GTK_WINDOW(widget),
+            flags,
+            ("_OK"),
+            GTK_RESPONSE_NONE,
+            NULL);
+        content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+        label = gtk_label_new(s.ptr);
+
+        // Ensure that the dialog box is destroyed when the user responds
+        g_signal_connect_swapped(dialog,
+            "response",
+            G_CALLBACK(gtk_widget_destroy),
+            dialog);
+
+        // Add the label, and show everything we’ve added
+        gtk_container_add(GTK_CONTAINER(content_area), label);
+        gtk_widget_show_all(dialog);
+    } else {
+        debug(1, "CURL got HTTP error code %zu result %s\n", curl_esponse_code, s.ptr);
+        free(url);
+        free(s.ptr);
+        curl_easy_cleanup(curl);
+        return;
+    }
+
+    free(url);
+    free(s.ptr);
+    curl_easy_cleanup(curl);
+}
+
+extern void filter_by_ip_per_board(GtkWidget* widget, gpointer data)
+{
+    assert(data);
+    struct g_callback_task* task = data;
+}

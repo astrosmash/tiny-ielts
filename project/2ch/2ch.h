@@ -26,6 +26,11 @@ extern ssize_t session_init(session_creds_t*, session_t*);
 extern board_t* fetch_board_info(session_t*, const char*);
 extern board_as_moder_t* fetch_board_info_as_moder(session_t*, const char*);
 
+extern void remove_post(GtkWidget*, gpointer);
+extern void add_local_ban(GtkWidget*, gpointer);
+extern void whois(GtkWidget*, gpointer);
+extern void filter_by_ip_per_board(GtkWidget*, gpointer);
+
 // TODO
 //extern post_t* fetch_all_posts_from_board(session_t*, board_t*);
 //extern thread_t* fetch_thread_from_board(session_t*, board_t*);

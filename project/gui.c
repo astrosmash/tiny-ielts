@@ -118,7 +118,7 @@ static void* thread_func(void* data)
     assert(board); // Will be freed by the callee (_Gui_RunChildThread)
 
     // Start drawing result
-    GtkWidget *grid = NULL, *label = NULL, *sbox = NULL, *scroll = NULL, *button = NULL, *event_box = NULL, *pmenu = NULL, *pmenu1 = NULL, *pmenu2 = NULL, *eventbox2 = NULL;
+    GtkWidget *grid = NULL, *vbox = NULL, *scroll = NULL;
 
     scroll = gtk_scrolled_window_new(NULL, NULL);
     assert(scroll);
@@ -139,16 +139,17 @@ static void* thread_func(void* data)
 
     gtk_container_add(GTK_CONTAINER(scroll), grid);
 
-    sbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 30);
-    assert(sbox);
+    vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    assert(vbox);
 
     for (size_t i = 0; i < sizeof(board->post) / sizeof(*board->post); ++i) {
         // Start drawing posts
-        size_t post_num = board->post[i].num;
-        size_t thread_posts_count = board->post[i].posts_count;
-        char* post_comment = board->post[i].comment;
+        bool banned = board->post[i].banned;
         char* country = board->post[i].country;
         char* ip = board->post[i].ip;
+        char* post_comment = board->post[i].comment;
+        size_t post_num = board->post[i].num;
+        size_t thread_posts_count = board->post[i].posts_count;
 
         for (size_t j = 0; board->post[i].country[j]; ++j) {
             board->post[i].country[j] = tolower(board->post[i].country[j]);
@@ -157,27 +158,15 @@ static void* thread_func(void* data)
         if (strlen(post_comment)) {
             debug(3, "Adding view for (%zu) %s/%zu\n", i, post_comment, post_num);
 
-            char* const label_name = malloc_memset(MAX_ARBITRARY_CHAR_LENGTH);
-            assert(label_name);
+            // Add inner horizontal box with info per post
+            GtkWidget* inner_hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+            assert(inner_hbox);
+            gtk_container_add(GTK_CONTAINER(vbox), inner_hbox);
 
-            snprintf(label_name, MAX_ARBITRARY_CHAR_LENGTH - 1, "%zu %s (%s, %s)", post_num, post_comment, country, ip);
-
-            event_box = gtk_event_box_new();
-            assert(event_box);
-            gtk_container_add(GTK_CONTAINER(sbox), event_box);
-            //            gtk_widget_show(event_box);
-
-            label = gtk_label_new(label_name);
-            assert(label);
-
-            gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_CENTER);
-            gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
-            gtk_widget_set_halign(label, GTK_ALIGN_START);
-            gtk_container_add(GTK_CONTAINER(event_box), label);
-
-            eventbox2 = gtk_event_box_new();
-            assert(eventbox2);
-            gtk_container_add(GTK_CONTAINER(sbox), eventbox2);
+            // Country flag
+            GtkWidget* eventbox_flag = gtk_event_box_new();
+            assert(eventbox_flag);
+            gtk_box_pack_start(GTK_BOX(inner_hbox), eventbox_flag, FALSE, FALSE, 0);
 
             char* const image_path = malloc_memset(MAX_ARBITRARY_CHAR_LENGTH);
             assert(image_path);
@@ -187,29 +176,92 @@ static void* thread_func(void* data)
             GdkPixbuf* pixbuf = gdk_pixbuf_new_from_file_at_size(image_path, 16, 16, NULL);
             GtkWidget* image = gtk_image_new_from_pixbuf(pixbuf);
             g_object_unref(pixbuf);
-            gtk_container_add(GTK_CONTAINER(eventbox2), image);
+            gtk_widget_set_halign(image, GTK_ALIGN_START);
+            gtk_container_add(GTK_CONTAINER(eventbox_flag), image);
 
-            pmenu = gtk_menu_new();
+            // Event box to capture clicks per post
+            GtkWidget* eventbox_post = gtk_event_box_new();
+            assert(eventbox_post);
+            gtk_box_pack_start(GTK_BOX(inner_hbox), eventbox_post, FALSE, FALSE, 0);
 
-            pmenu1 = gtk_menu_item_new_with_label("Бан нахуй");
-            gtk_widget_show(pmenu1);
-            gtk_menu_shell_append(GTK_MENU_SHELL(pmenu), pmenu1);
+            // The post
+            char* const post = malloc_memset(MAX_ARBITRARY_CHAR_LENGTH);
+            assert(post);
+            if (!banned) {
+                snprintf(post, MAX_ARBITRARY_CHAR_LENGTH - 1, "<span color='#FFCCCC'>(Banned)</span> <span color='#E0E0E0'> <i>%s</i> <b>#%zu</b> %s </span>", ip, post_num, post_comment);
+            } else {
+                snprintf(post, MAX_ARBITRARY_CHAR_LENGTH - 1, "<i>%s</i> <b>#%zu</b> %s", ip, post_num, post_comment);
+            }
 
-            pmenu2 = gtk_menu_item_new_with_label("Репорт цп");
-            gtk_widget_show(pmenu2);
-            gtk_menu_shell_append(GTK_MENU_SHELL(pmenu), pmenu2);
+            GtkWidget* post_label = gtk_label_new(NULL);
+            assert(post_label);
 
-            g_signal_connect_swapped(G_OBJECT(pmenu1), "activate",
-                G_CALLBACK(gtk_window_iconify), GTK_WINDOW(my_app_config->window));
+            gtk_label_set_justify(GTK_LABEL(post_label), GTK_JUSTIFY_CENTER);
+            gtk_label_set_line_wrap(GTK_LABEL(post_label), TRUE);
+            gtk_widget_set_halign(post_label, GTK_ALIGN_START);
+            gtk_label_set_markup(GTK_LABEL(post_label), post);
+            gtk_container_add(GTK_CONTAINER(eventbox_post), post_label);
 
-            g_signal_connect(G_OBJECT(pmenu2), "activate",
-                G_CALLBACK(gtk_main_quit), NULL);
+            // Finally, separator, followed by next horizontal box
+            GtkWidget* separator = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+            assert(separator);
+            gtk_container_add(GTK_CONTAINER(vbox), separator);
 
-            g_signal_connect(G_OBJECT(my_app_config->window), "destroy",
-                G_CALLBACK(gtk_main_quit), NULL);
+            // Add context menus for posts
+            GtkWidget* parent_menu = gtk_menu_new();
+            assert(parent_menu);
 
-            g_signal_connect_swapped(G_OBJECT(event_box), "button-press-event",
-                G_CALLBACK(_Gui_DrawPopup), pmenu);
+            GtkWidget* submenu_option_remove_post = gtk_menu_item_new_with_label("Удалить пост");
+            assert(submenu_option_remove_post);
+            gtk_widget_show(submenu_option_remove_post);
+            gtk_menu_shell_append(GTK_MENU_SHELL(parent_menu), submenu_option_remove_post);
+
+            GtkWidget* submenu_option_ban = gtk_menu_item_new_with_label("Забанить");
+            assert(submenu_option_ban);
+            gtk_widget_show(submenu_option_ban);
+            gtk_menu_shell_append(GTK_MENU_SHELL(parent_menu), submenu_option_ban);
+
+            GtkWidget* submenu_option_whois = gtk_menu_item_new_with_label("Whois");
+            assert(submenu_option_whois);
+            gtk_widget_show(submenu_option_whois);
+            gtk_menu_shell_append(GTK_MENU_SHELL(parent_menu), submenu_option_whois);
+
+            GtkWidget* submenu_option_filter_author = gtk_menu_item_new_with_label("Все с этого IP");
+            assert(submenu_option_filter_author);
+            gtk_widget_show(submenu_option_filter_author);
+            gtk_menu_shell_append(GTK_MENU_SHELL(parent_menu), submenu_option_filter_author);
+
+            // For callbacks; to be freed, currently leaking as we're joining the thread. One option is to return all alloc'ed regions as thread result
+            struct g_callback_task* remove_post_task = malloc_memset(sizeof(struct g_callback_task));
+            struct g_callback_task* add_local_ban_task = malloc_memset(sizeof(struct g_callback_task));
+            struct g_callback_task* whois_post_task = malloc_memset(sizeof(struct g_callback_task));
+            struct g_callback_task* filter_by_ip_per_board_task = malloc_memset(sizeof(struct g_callback_task));
+
+            remove_post_task->what = board->post;
+            g_signal_connect(G_OBJECT(submenu_option_remove_post), "activate",
+                G_CALLBACK(remove_post), remove_post_task);
+
+            add_local_ban_task->what = board->post;
+            g_signal_connect(G_OBJECT(submenu_option_ban), "activate",
+                G_CALLBACK(add_local_ban), add_local_ban_task);
+
+            whois_post_task->what = malloc_memset(strlen(ip) + 1); // To be freed
+            strncpy(whois_post_task->what, ip, strlen(ip));
+            g_signal_connect(G_OBJECT(submenu_option_whois), "activate",
+                G_CALLBACK(whois), whois_post_task);
+
+            filter_by_ip_per_board_task->what = board->post;
+            g_signal_connect(G_OBJECT(submenu_option_filter_author), "activate",
+                G_CALLBACK(filter_by_ip_per_board), filter_by_ip_per_board_task);
+
+            //            g_signal_connect_swapped(G_OBJECT(submenu_option_remove_post), "activate",
+            //                G_CALLBACK(gtk_window_iconify), GTK_WINDOW(my_app_config->window));
+
+            //            g_signal_connect(G_OBJECT(my_app_config->window), "destroy",
+            //                G_CALLBACK(gtk_main_quit), NULL);
+
+            g_signal_connect_swapped(G_OBJECT(eventbox_post), "button-press-event",
+                G_CALLBACK(_Gui_DrawPopup), parent_menu);
 
             ////            gtk_widget_set_size_request (label, 110, 20);
             //            gtk_widget_set_events (event_box, GDK_BUTTON_PRESS_MASK);
@@ -226,12 +278,12 @@ static void* thread_func(void* data)
             //            g_signal_connect(button, "clicked", G_CALLBACK(_Gui_Exit), NULL);
             //            gtk_container_add(GTK_CONTAINER(sbox), button);
             //            gtk_widget_set_name(button, "join_thread_test_button");
-            free(label_name);
+            free(post);
             free(image_path);
         }
     }
 
-    gtk_grid_attach(GTK_GRID(grid), sbox, 0, 1, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), vbox, 0, 1, 1, 1);
     gtk_widget_show_all(my_app_config->window);
 
     return board; // to be freed by the caller

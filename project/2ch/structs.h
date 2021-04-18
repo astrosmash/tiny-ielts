@@ -126,3 +126,8 @@ typedef struct {
     post_t post[MAX_NUM_OF_POSTS_PER_BOARD_AS_MODER];
 
 } board_as_moder_t;
+
+struct g_callback_task {
+    void* what;
+    void* result;
+};
