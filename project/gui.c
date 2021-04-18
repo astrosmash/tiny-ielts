@@ -2,9 +2,41 @@
 #define Gui_Init (*Gui_Construct)
 
 // Global state vars
-GuiRuntimeConfig* my_app_config = NULL;
-session_creds_t* creds = NULL;
-session_t* session = NULL;
+static GuiRuntimeConfig* get_gui_runtime_config(bool need_to_allocate)
+{
+    static GuiRuntimeConfig* my_app_config = NULL;
+
+    if (need_to_allocate) {
+        my_app_config = malloc_memset(sizeof(GuiRuntimeConfig));
+    }
+    assert(my_app_config);
+    debug(3, "Returning %p, allocated = %u\n", (void*)my_app_config, need_to_allocate);
+    return my_app_config;
+}
+
+static session_t* get_session(bool need_to_allocate)
+{
+    static session_t* session = NULL;
+
+    if (need_to_allocate) {
+        session = malloc_memset(sizeof(session_t));
+    }
+    assert(session);
+    debug(3, "Returning %p, allocated = %u\n", (void*)session, need_to_allocate);
+    return session;
+}
+
+static session_creds_t* get_session_creds(bool need_to_allocate)
+{
+    static session_creds_t* creds = NULL;
+
+    if (need_to_allocate) {
+        creds = malloc_memset(sizeof(session_creds_t));
+    }
+    assert(creds);
+    debug(3, "Returning %p, allocated = %u\n", (void*)creds, need_to_allocate);
+    return creds;
+}
 
 Gui* Gui_Construct(void)
 {
@@ -13,10 +45,10 @@ Gui* Gui_Construct(void)
     _Gui_SetName(g, "2ch_worker_gui");
     debug(3, "Allocated new object on %p\n", (void*)g);
 
-    // Allocate global state vars
-    my_app_config = malloc_memset(sizeof(GuiRuntimeConfig));
-    session = malloc_memset(sizeof(session_t));
-    creds = malloc_memset(sizeof(session_creds_t));
+    GuiRuntimeConfig* my_app_config = get_gui_runtime_config(true);
+    session_t* session = get_session(true);
+    session_creds_t* creds = get_session_creds(true);
+
     session->creds = creds;
     my_app_config->WorkerData.session = session;
 
@@ -55,16 +87,18 @@ Gui* Gui_Construct(void)
 void Gui_Destruct(Gui** g)
 {
     assert(*g);
-
+    GuiRuntimeConfig* my_app_config = get_gui_runtime_config(false);
     if (my_app_config->child_thread)
         Thread_Destruct(&my_app_config->child_thread);
     //        free(my_app_config);
     //        my_app_config = NULL; // bus error?
 
+    session_t* session = get_session(false);
     if (session)
         free(session);
     session = NULL;
 
+    session_creds_t* creds = get_session_creds(false);
     if (creds)
         free(creds);
     creds = NULL;
@@ -106,10 +140,9 @@ static void _Gui_Exit(gpointer data, GtkWidget* widget)
 
 static void* thread_func(void* data)
 {
-    assert(my_app_config->window);
-
     assert(data);
     GuiRuntimeConfig* g_config = data;
+    assert(g_config->window);
 
     debug(3, "thread_func launched ok! %s\n", Gui_GetName(g_config->my_gui));
     debug(3, "passing board %s (cookie %s)\n", g_config->WorkerData.board, g_config->WorkerData.session->cookie);
@@ -123,7 +156,7 @@ static void* thread_func(void* data)
     scroll = gtk_scrolled_window_new(NULL, NULL);
     assert(scroll);
 
-    gtk_container_add(GTK_CONTAINER(my_app_config->window), scroll);
+    gtk_container_add(GTK_CONTAINER(g_config->window), scroll);
     gtk_widget_set_name(scroll, "main_scroll");
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll),
         GTK_POLICY_AUTOMATIC,
@@ -284,7 +317,7 @@ static void* thread_func(void* data)
     }
 
     gtk_grid_attach(GTK_GRID(grid), vbox, 0, 1, 1, 1);
-    gtk_widget_show_all(my_app_config->window);
+    gtk_widget_show_all(g_config->window);
 
     return board; // to be freed by the caller
 }
@@ -295,6 +328,7 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
     assert(data);
     struct GtkEntries* entries = data;
 
+    session_creds_t* creds = get_session_creds(false);
     for (size_t i = 0; i < 2; i++) {
         assert(entries->entry[i]);
 
@@ -330,6 +364,8 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
 
     //        if (!creds)
     //            creds = malloc_memset(sizeof(session_creds_t));
+    session_t* session = get_session(false);
+    GuiRuntimeConfig* my_app_config = get_gui_runtime_config(false);
 
     if (strlen(session->cookie) == 0) {
         if (strlen(creds->username) && strlen(creds->password)) {
