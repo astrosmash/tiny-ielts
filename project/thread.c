@@ -30,8 +30,7 @@ void Thread_Destruct(Thread** t)
 {
     assert(*t);
     debug(3, "Freed object on %p\n", (void*)*t);
-    free(*t);
-    *t = NULL;
+    safe_free((void**)t);
 }
 
 // Getters

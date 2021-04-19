@@ -1,56 +1,54 @@
-static void _Gui_RunChildThread(GtkWidget* widget, gpointer data)
+static void _Gui_RunBoardTopFetchThread(GtkWidget* widget, gpointer data)
 {
     assert(data);
     GuiRuntimeConfig* g_config = data;
     assert(g_config->my_gui);
 
-    Thread* my_thread = NULL;
-
     const gchar* board_name = gtk_widget_get_name(GTK_WIDGET(widget));
     memset(&g_config->WorkerData.board, 0, MAX_BOARD_NAME_LENGTH);
     strncpy(g_config->WorkerData.board, board_name, strlen(board_name));
-    debug(3, "Passing %s(%s)\n", g_config->WorkerData.board, g_config->WorkerData.session->cookie);
+    debug(3, "Fetching top for %s with cookie %s\n", g_config->WorkerData.board, g_config->WorkerData.session->cookie);
 
     assert(g_config->window);
     _Gui_CleanMainChildren(g_config->window);
 
+    Thread* my_thread = NULL;
     if (((my_thread = Thread_Init(&thread_func, g_config)) == NULL)) {
         debug(1, "Cannot launch thread_func! %s\n", Gui_GetName(g_config->my_gui));
+        return;
     }
 
-    g_config->child_thread = my_thread;
+    g_config->board_top_fetch_thread = my_thread;
 
     // Immediately join it
     char* thread_result = NULL;
-    if (Thread_Join(g_config->child_thread, &thread_result) == 0) {
+    if (Thread_Join(g_config->board_top_fetch_thread, &thread_result) == 0) {
         debug(3, "Thread %s joined ok, result %s\n", Gui_GetName(g_config->my_gui), thread_result);
     } else {
         debug(1, "Failed to join thread %s\n", Gui_GetName(g_config->my_gui));
     }
 
     // Free an object allocated in the thread_func
-    free(thread_result);
+    safe_free((void**)&thread_result);
 }
 
 // -------------------------------------------------- Drawings
 
-static void _Gui_CleanMainChildren(GtkWidget* window)
+static void _Gui_CleanMainChildren(GtkWidget* widget)
 {
-    assert(window);
+    assert(widget);
 
     // Remove all widgets that are present on the main window
-    if (GTK_IS_CONTAINER(window)) {
-        GList* children = gtk_container_get_children(GTK_CONTAINER(window));
-        fprintf(stdout, "Checking child containers...\n");
-
+    if (GTK_IS_CONTAINER(widget)) {
+        GList* children = gtk_container_get_children(GTK_CONTAINER(widget));
         for (const GList* iter = children; iter != NULL; iter = g_list_next(iter)) {
-            fprintf(stdout, "Found child, destroying\n");
+            debug(3, "Clearing child at %p\n", iter->data);
             gtk_widget_destroy(GTK_WIDGET(iter->data));
         }
     }
 }
 
-static bool _Gui_DrawPopup(GtkWidget* widget, GdkEvent* event)
+static void _Gui_DrawPopupMenu(GtkWidget* widget, GdkEvent* event)
 {
     assert(widget);
     assert(event);
@@ -61,9 +59,40 @@ static bool _Gui_DrawPopup(GtkWidget* widget, GdkEvent* event)
             gtk_menu_popup(GTK_MENU(widget), NULL, NULL, NULL, NULL,
                 bevent->button, bevent->time);
         }
-        return true;
     }
-    return false;
+}
+
+static void _Gui_DrawPopupDialog(GtkWidget* parent, void* what)
+{
+    assert(parent);
+    assert(what);
+
+    GtkWidget *dialog = NULL, *content_area = NULL, *label = NULL;
+    GtkDialogFlags flags = GTK_DIALOG_DESTROY_WITH_PARENT; // Create the widgets
+
+    dialog = gtk_dialog_new_with_buttons("Result",
+        GTK_WINDOW(parent),
+        flags,
+        ("_OK"),
+        GTK_RESPONSE_NONE,
+        NULL);
+    assert(dialog);
+
+    content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
+    assert(content_area);
+
+    // Ensure that the dialog box is destroyed when the user responds
+    g_signal_connect_swapped(dialog,
+        "response",
+        G_CALLBACK(gtk_widget_destroy),
+        dialog);
+
+    label = gtk_label_new(what);
+    assert(label);
+
+    // Add the label, and show everything we’ve added
+    gtk_container_add(GTK_CONTAINER(content_area), label);
+    gtk_widget_show_all(dialog);
 }
 
 static bool _Gui_DrawMainScreen(GuiRuntimeConfig* my_app_config)
@@ -113,7 +142,7 @@ static bool _Gui_DrawMainScreen(GuiRuntimeConfig* my_app_config)
             assert(button);
 
             // Fetch posts
-            g_signal_connect(button, "clicked", G_CALLBACK(_Gui_RunChildThread), my_app_config);
+            g_signal_connect(button, "clicked", G_CALLBACK(_Gui_RunBoardTopFetchThread), my_app_config);
             gtk_grid_attach(GTK_GRID(grid), button, 0, i + 1, 1, 1);
             gtk_widget_set_name(button, board_name);
         }
@@ -148,7 +177,7 @@ static void _Gui_DrawLoginInvitationScreen(GuiRuntimeConfig* my_app_config)
 
     button = gtk_button_new_with_label("Yes");
     assert(button);
-    g_signal_connect(button, "clicked", G_CALLBACK(_Gui_WantAuthenticate), box);
+    g_signal_connect(button, "clicked", G_CALLBACK(_Gui_DrawAuthScreen), box);
     gtk_grid_attach(GTK_GRID(grid), button, 0, 1, 1, 1);
     gtk_widget_set_name(button, "yes_button");
 
@@ -159,7 +188,7 @@ static void _Gui_DrawLoginInvitationScreen(GuiRuntimeConfig* my_app_config)
     gtk_widget_set_name(button, "quit_button");
 }
 
-static void _Gui_WantAuthenticate(GtkWidget* widget, gpointer data)
+static void _Gui_DrawAuthScreen(GtkWidget* widget, gpointer data)
 {
     assert(data);
     GtkWidget *box = data, *grid = NULL, *label = NULL, *username_entry = NULL, *password_entry = NULL;
@@ -210,4 +239,37 @@ static void _Gui_WantAuthenticate(GtkWidget* widget, gpointer data)
         // redraw
         gtk_widget_show_all(box);
     }
+}
+
+gboolean update_gui(gpointer data)
+{
+    struct g_callback_task* task = data;
+    GtkWidget* parent = task->caller_widget;
+    _Gui_DrawPopupDialog(parent, task->result);
+    gtk_widget_queue_draw(parent);
+    safe_free(&task->result);
+    return FALSE; //  If the function returns FALSE it is automatically removed from the list of event sources and will not be called again.
+}
+
+extern void* task_monitor(void* runtime_config)
+{
+    //    assert(runtime_config);
+    //    GuiRuntimeConfig* config = runtime_config;
+
+    struct timespec iter_retry = { .tv_sec = 1 };
+    struct g_callback_task* task = NULL;
+    task = malloc_memset(sizeof(struct g_callback_task));
+
+    while (true) {
+        for (size_t task_type = REMOVE_POST; task_type <= FILTER_BY_IP_PER_BOARD; ++task_type) {
+            if (((task = task_manager(LOOK_FOR_TASKS, NULL, task_type))) != NULL) { // We have a result, let's draw it
+                debug(1, "Got task result to draw: %s", task->result);
+                g_idle_add(update_gui, task);
+            } else {
+                debug(1, "Waiting for result to draw - %s", "sleeping...");
+            }
+        }
+        nanosleep(&iter_retry, NULL);
+    }
+    return NULL;
 }

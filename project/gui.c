@@ -2,7 +2,7 @@
 #define Gui_Init (*Gui_Construct)
 
 // Global state vars
-static GuiRuntimeConfig* get_gui_runtime_config(bool need_to_allocate)
+extern GuiRuntimeConfig* get_gui_runtime_config(bool need_to_allocate)
 {
     static GuiRuntimeConfig* my_app_config = NULL;
 
@@ -14,7 +14,7 @@ static GuiRuntimeConfig* get_gui_runtime_config(bool need_to_allocate)
     return my_app_config;
 }
 
-static session_t* get_session(bool need_to_allocate)
+extern session_t* get_session(bool need_to_allocate)
 {
     static session_t* session = NULL;
 
@@ -26,7 +26,7 @@ static session_t* get_session(bool need_to_allocate)
     return session;
 }
 
-static session_creds_t* get_session_creds(bool need_to_allocate)
+extern session_creds_t* get_session_creds(bool need_to_allocate)
 {
     static session_creds_t* creds = NULL;
 
@@ -71,6 +71,15 @@ Gui* Gui_Construct(void)
     my_app_config->my_gui = g;
     my_app_config->window = main_window;
 
+    // Monitor results of tasks in a separate thread
+    Thread* my_thread = NULL;
+    if (((my_thread = Thread_Init(&task_monitor, my_app_config)) == NULL)) {
+        fprintf(stderr, "Cannot launch thread to monitor task result! \n");
+    } else {
+        fprintf(stderr, "CAN launch thread to monitor task result! \n");
+    }
+    my_app_config->monitor_thread = my_thread;
+
     // Just check if a file exists without removing/creating it.
     // Necessary checks will be performed later
     if (creds_file_path(false, false) && _Gui_DrawMainScreen(my_app_config)) {
@@ -88,24 +97,32 @@ void Gui_Destruct(Gui** g)
 {
     assert(*g);
     GuiRuntimeConfig* my_app_config = get_gui_runtime_config(false);
-    if (my_app_config->child_thread)
-        Thread_Destruct(&my_app_config->child_thread);
-    //        free(my_app_config);
-    //        my_app_config = NULL; // bus error?
+    if (my_app_config->board_top_fetch_thread) {
+        // should be already joined by _Gui_RunBoardTopFetchThread
+        Thread_Destruct(&my_app_config->board_top_fetch_thread);
+    }
+    if (my_app_config->monitor_thread) {
+        // This is an infinite loop thread, we should send a signal to it, but let's just cancel for now...
+        pthread_cancel(Thread_GetId(my_app_config->monitor_thread));
+        //        if (Thread_Join(my_app_config->monitor_thread, &thread_result) == 0) {
+        //            debug(3, "Thread to monitor task result joined ok, result %s\n", thread_result);
+        //        } else {
+        //            fprintf(stderr, "Cannot join thread to monitor task result! \n");
+        //        }
+        Thread_Destruct(&my_app_config->monitor_thread);
+    }
+    //        safe_free(&my_app_config); // bus error?
 
     session_t* session = get_session(false);
     if (session)
-        free(session);
-    session = NULL;
+        safe_free((void**)&session);
 
     session_creds_t* creds = get_session_creds(false);
     if (creds)
-        free(creds);
-    creds = NULL;
+        safe_free((void**)&creds);
 
     debug(3, "Freed object on %p\n", (void*)*g);
-    free(*g);
-    *g = NULL;
+    safe_free((void**)g);
 
     gtk_main_quit();
 }
@@ -148,7 +165,7 @@ static void* thread_func(void* data)
     debug(3, "passing board %s (cookie %s)\n", g_config->WorkerData.board, g_config->WorkerData.session->cookie);
 
     board_as_moder_t* board = fetch_board_info_as_moder(g_config->WorkerData.session, g_config->WorkerData.board);
-    assert(board); // Will be freed by the callee (_Gui_RunChildThread)
+    assert(board); // Will be freed by the caller (_Gui_RunBoardTopFetchThread)
 
     // Start drawing result
     GtkWidget *grid = NULL, *vbox = NULL, *scroll = NULL;
@@ -182,7 +199,7 @@ static void* thread_func(void* data)
         char* ip = board->post[i].ip;
         char* post_comment = board->post[i].comment;
         size_t post_num = board->post[i].num;
-        size_t thread_posts_count = board->post[i].posts_count;
+        //        size_t thread_posts_count = board->post[i].posts_count;
 
         for (size_t j = 0; board->post[i].country[j]; ++j) {
             board->post[i].country[j] = tolower(board->post[i].country[j]);
@@ -264,26 +281,22 @@ static void* thread_func(void* data)
             gtk_widget_show(submenu_option_filter_author);
             gtk_menu_shell_append(GTK_MENU_SHELL(parent_menu), submenu_option_filter_author);
 
-            // For callbacks; to be freed, currently leaking as we're joining the thread. One option is to return all alloc'ed regions as thread result
-            struct g_callback_task* remove_post_task = malloc_memset(sizeof(struct g_callback_task));
-            struct g_callback_task* add_local_ban_task = malloc_memset(sizeof(struct g_callback_task));
-            struct g_callback_task* whois_post_task = malloc_memset(sizeof(struct g_callback_task));
-            struct g_callback_task* filter_by_ip_per_board_task = malloc_memset(sizeof(struct g_callback_task));
-
-            remove_post_task->what = board->post;
+            struct g_callback_task* remove_post_task = get_task(REMOVE_POST, board->post);
             g_signal_connect(G_OBJECT(submenu_option_remove_post), "activate",
                 G_CALLBACK(remove_post), remove_post_task);
 
-            add_local_ban_task->what = board->post;
+            struct g_callback_task* add_local_ban_task = get_task(ADD_LOCAL_BAN, board->post);
             g_signal_connect(G_OBJECT(submenu_option_ban), "activate",
                 G_CALLBACK(add_local_ban), add_local_ban_task);
 
-            whois_post_task->what = malloc_memset(strlen(ip) + 1); // To be freed
-            strncpy(whois_post_task->what, ip, strlen(ip));
+            char* inserted_ip = malloc_memset(strlen(ip) + 1); // To be freed
+            strncpy(inserted_ip, ip, strlen(ip));
+            struct g_callback_task* whois_post_task = get_task(WHOIS_POST, inserted_ip);
+            debug(3, "adding IP view %s for %zu\n", whois_post_task->what, i);
             g_signal_connect(G_OBJECT(submenu_option_whois), "activate",
                 G_CALLBACK(whois), whois_post_task);
 
-            filter_by_ip_per_board_task->what = board->post;
+            struct g_callback_task* filter_by_ip_per_board_task = get_task(FILTER_BY_IP_PER_BOARD, board->post);
             g_signal_connect(G_OBJECT(submenu_option_filter_author), "activate",
                 G_CALLBACK(filter_by_ip_per_board), filter_by_ip_per_board_task);
 
@@ -294,7 +307,7 @@ static void* thread_func(void* data)
             //                G_CALLBACK(gtk_main_quit), NULL);
 
             g_signal_connect_swapped(G_OBJECT(eventbox_post), "button-press-event",
-                G_CALLBACK(_Gui_DrawPopup), parent_menu);
+                G_CALLBACK(_Gui_DrawPopupMenu), parent_menu);
 
             ////            gtk_widget_set_size_request (label, 110, 20);
             //            gtk_widget_set_events (event_box, GDK_BUTTON_PRESS_MASK);
@@ -311,8 +324,8 @@ static void* thread_func(void* data)
             //            g_signal_connect(button, "clicked", G_CALLBACK(_Gui_Exit), NULL);
             //            gtk_container_add(GTK_CONTAINER(sbox), button);
             //            gtk_widget_set_name(button, "join_thread_test_button");
-            free(post);
-            free(image_path);
+            safe_free((void**)&post);
+            safe_free((void**)&image_path);
         }
     }
 
@@ -380,7 +393,7 @@ static void _Gui_GetText(GtkEntry* entry, gpointer data)
             }
 
             gtk_widget_show_all(my_app_config->window);
-            free(entries);
+            safe_free((void**)&entries);
         }
     } else {
         debug(4, "Will not trigger session_init - have session present cookie %s user %s pass %s. Just re-launch an app to relogin\n", session->cookie, session->creds->username, session->creds->password);

@@ -39,12 +39,12 @@ extern char* creds_file_path(bool need_to_create, bool need_to_delete)
 
             if ((res = mkdir(fullpath, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH))) {
                 debug(1, "Cannot create credentials directory %s (%s)\n", fullpath, strerror(errno));
-                free(fullpath);
+                safe_free((void**)&fullpath);
                 return NULL;
             }
         } else {
             // Cannot access a directory and need_to_create = false
-            free(fullpath);
+            safe_free((void**)&fullpath);
             return NULL;
         }
     }
@@ -62,12 +62,12 @@ extern char* creds_file_path(bool need_to_create, bool need_to_delete)
 
             if ((res = open(fullpath, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR)) == -1) {
                 debug(1, "Cannot create credentials file %s (%s)\n", fullpath, strerror(errno));
-                free(fullpath);
+                safe_free((void**)&fullpath);
                 return NULL;
             }
         } else {
             // Cannot access a file and need_to_create = false
-            free(fullpath);
+            safe_free((void**)&fullpath);
             return NULL;
         }
     }
@@ -115,7 +115,7 @@ static CURL* dvach_curl_init(struct curl_string* s, const char* cookie)
 
     if (!snprintf(user_agent, MAX_CRED_LENGTH - 2, "User-Agent: 2ch-mod/%f", 0.1)) {
         debug(1, "Unable to populate User-Agent %s\n", user_agent);
-        free(user_agent);
+        safe_free((void**)&user_agent);
         return NULL;
     }
 
@@ -132,6 +132,70 @@ static CURL* dvach_curl_init(struct curl_string* s, const char* cookie)
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_func);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, s);
 
-    free(user_agent);
+    safe_free((void**)&user_agent);
     return curl;
+}
+
+extern void* task_manager(size_t mode, void* task, size_t type)
+{
+    static size_t allocated_tasks = 0;
+    static struct g_callback_task* pool[MAX_NUM_OF_TASKS] = { NULL };
+    struct g_callback_task* task_to_provide = NULL;
+
+    if (mode & INSERT_TASK) { // insert mode
+        struct g_callback_task* insert_task = task;
+        insert_task->type = type;
+        assert(allocated_tasks <= MAX_NUM_OF_TASKS);
+        debug(1, "inserting task %p to pool as #%zu (type %zu)", (void*)insert_task, allocated_tasks, type);
+        pool[allocated_tasks] = insert_task;
+        ++allocated_tasks;
+        return NULL;
+    } else if (mode & LOOK_FOR_TASKS) {
+        for (size_t i = 0; i <= MAX_NUM_OF_TASKS; ++i) {
+            //            debug(1, "searching for tasks of type %zu, now at %zu", type, i);
+            if (((task_to_provide = pool[i])) && (task_to_provide->type == type && task_to_provide->result)) { // hit
+                debug(1, "found match of type #%zu at %p", task_to_provide->type, (void*)task_to_provide);
+                return task_to_provide;
+            }
+        }
+    }
+    return NULL;
+}
+
+extern struct g_callback_task* get_task(size_t task_type, void* what)
+{
+    struct g_callback_task* remove_post_task = malloc_memset(sizeof(struct g_callback_task));
+    struct g_callback_task* add_local_ban_task = malloc_memset(sizeof(struct g_callback_task));
+    struct g_callback_task* whois_post_task = malloc_memset(sizeof(struct g_callback_task));
+    struct g_callback_task* filter_by_ip_per_board_task = malloc_memset(sizeof(struct g_callback_task));
+
+    switch (task_type) {
+    case REMOVE_POST:
+        remove_post_task->what = what;
+        task_manager(INSERT_TASK, remove_post_task, task_type);
+        return remove_post_task;
+        break;
+
+    case ADD_LOCAL_BAN:
+        add_local_ban_task->what = what;
+        task_manager(INSERT_TASK, add_local_ban_task, task_type);
+        return add_local_ban_task;
+        break;
+
+    case WHOIS_POST:
+        whois_post_task->what = what;
+        task_manager(INSERT_TASK, whois_post_task, task_type);
+        return whois_post_task;
+        break;
+
+    case FILTER_BY_IP_PER_BOARD:
+        filter_by_ip_per_board_task->what = what;
+        task_manager(INSERT_TASK, filter_by_ip_per_board_task, task_type);
+        return filter_by_ip_per_board_task;
+        break;
+
+    default:
+        debug(1, "Unknown task type %zu\n", task_type);
+        return NULL;
+    }
 }

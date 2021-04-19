@@ -8,6 +8,7 @@
 #define MAX_NUM_OF_THREADS 512
 #define MAX_NUM_OF_BAN_REASONS 50
 #define MAX_NUM_OF_POSTS_PER_BOARD_AS_MODER 200
+#define MAX_NUM_OF_TASKS 999
 
 // Helper data structures and functions
 #include "auxiliary.h"

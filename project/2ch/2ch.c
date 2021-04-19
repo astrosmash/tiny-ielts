@@ -12,7 +12,7 @@ extern bool populate_session_from_file(session_t* session)
 
     if ((file = fopen(fullpath, opmode)) == NULL) {
         debug(1, "fopen(%s) no file\n", fullpath);
-        free(fullpath);
+        safe_free((void**)&fullpath);
         return false;
     }
 
@@ -28,8 +28,8 @@ extern bool populate_session_from_file(session_t* session)
         // remove it so it gets re-created on next app launch
         debug(1, "No content was read or auth file corrupt? Removing %s\n", fullpath);
         fullpath = creds_file_path(false, true); // remove file
-        free(buf);
-        free(fullpath);
+        safe_free((void**)&buf);
+        safe_free((void**)&fullpath);
         return false;
     }
 
@@ -56,8 +56,8 @@ extern bool populate_session_from_file(session_t* session)
     }
 
     debug(3, "Populated credentials cookie: %s\n", session->cookie);
-    free(buf);
-    free(fullpath);
+    safe_free((void**)&buf);
+    safe_free((void**)&fullpath);
     return true;
 }
 
@@ -96,7 +96,7 @@ extern bool populate_file_from_session(session_creds_t* creds, session_t* sessio
 
     if ((file = fopen(fullpath, mode)) == NULL) {
         debug(1, "fopen(%s) cannot open file\n", fullpath);
-        free(fullpath);
+        safe_free((void**)&fullpath);
         return false;
     }
 
@@ -109,7 +109,7 @@ extern bool populate_file_from_session(session_creds_t* creds, session_t* sessio
             char* add = malloc_memset(MAX_ARBITRARY_CHAR_LENGTH);
             snprintf(add, MAX_ARBITRARY_CHAR_LENGTH, "board = %s\n", session->moder.boards[i]);
             strncat(content, add, strlen(add));
-            free(add);
+            safe_free((void**)&add);
         }
     }
 
@@ -117,14 +117,14 @@ extern bool populate_file_from_session(session_creds_t* creds, session_t* sessio
     if (!ret) {
         debug(1, "fwrite(%s) cannot write to file\n", fullpath);
         fclose(file);
-        free(content);
-        free(fullpath);
+        safe_free((void**)&content);
+        safe_free((void**)&fullpath);
         return false;
     }
 
     fclose(file);
-    free(content);
-    free(fullpath);
+    safe_free((void**)&content);
+    safe_free((void**)&fullpath);
     return true;
 }
 
@@ -186,14 +186,14 @@ extern ssize_t session_init(session_creds_t* creds, session_t* session)
         goto cleanup;
     }
 
-    free(postfields);
-    free(s.ptr);
+    safe_free((void**)&postfields);
+    safe_free((void**)&s.ptr);
     curl_easy_cleanup(curl);
     return EXIT_SUCCESS;
 
 cleanup:
-    free(postfields);
-    free(s.ptr);
+    safe_free((void**)&postfields);
+    safe_free((void**)&s.ptr);
     curl_easy_cleanup(curl);
     return EXIT_FAILURE;
 }
@@ -264,17 +264,17 @@ extern board_t* fetch_board_info(session_t* session, const char* board_name)
         goto cleanup;
     }
 
-    free(cookie);
-    free(url);
-    free(s.ptr);
+    safe_free((void**)&cookie);
+    safe_free((void**)&url);
+    safe_free((void**)&s.ptr);
     curl_easy_cleanup(curl);
     return board; // to be freed by caller
 
 cleanup:
-    free(board);
-    free(cookie);
-    free(url);
-    free(s.ptr);
+    safe_free((void**)&board);
+    safe_free((void**)&cookie);
+    safe_free((void**)&url);
+    safe_free((void**)&s.ptr);
     if (curl)
         curl_easy_cleanup(curl);
     return NULL;
@@ -346,17 +346,17 @@ extern board_as_moder_t* fetch_board_info_as_moder(session_t* session, const cha
         goto cleanup;
     }
 
-    free(cookie);
-    free(url);
-    free(s.ptr);
+    safe_free((void**)&cookie);
+    safe_free((void**)&url);
+    safe_free((void**)&s.ptr);
     curl_easy_cleanup(curl);
     return board; // to be freed by caller
 
 cleanup:
-    free(board);
-    free(cookie);
-    free(url);
-    free(s.ptr);
+    safe_free((void**)&board);
+    safe_free((void**)&cookie);
+    safe_free((void**)&url);
+    safe_free((void**)&s.ptr);
     if (curl)
         curl_easy_cleanup(curl);
     return NULL;
@@ -401,8 +401,8 @@ extern void whois(GtkWidget* widget, gpointer data)
 
     if (!snprintf(url, MAX_CRED_LENGTH - 2, "http://ipwhois.app/line/%s", ip)) {
         debug(1, "Cannot assemble URL http://ipwhois.app/line/%s", ip);
-        free(url);
-        free(s.ptr);
+        safe_free((void**)&url);
+        safe_free((void**)&s.ptr);
         return;
     }
 
@@ -412,8 +412,8 @@ extern void whois(GtkWidget* widget, gpointer data)
     CURLcode res = curl_easy_perform(curl);
     if (res != CURLE_OK) {
         debug(1, "Got curl_easy_perform err %s\n", curl_easy_strerror(res));
-        free(url);
-        free(s.ptr);
+        safe_free((void**)&url);
+        safe_free((void**)&s.ptr);
         curl_easy_cleanup(curl);
         return;
     }
@@ -422,8 +422,8 @@ extern void whois(GtkWidget* widget, gpointer data)
     res = curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &curl_esponse_code);
     if (res != CURLE_OK) {
         debug(1, "Got curl_easy_getinfo err %s\n", curl_easy_strerror(res));
-        free(url);
-        free(s.ptr);
+        safe_free((void**)&url);
+        safe_free((void**)&s.ptr);
         curl_easy_cleanup(curl);
         return;
     }
@@ -431,39 +431,18 @@ extern void whois(GtkWidget* widget, gpointer data)
     if (curl_esponse_code == 200) {
         debug(3, "%s CURL result %s\n", url, s.ptr);
 
-        GtkWidget *dialog, *label, *content_area;
-        GtkDialogFlags flags;
+        task->caller_widget = widget;
+        task->result = s.ptr; // to be freed by caller
 
-        // Create the widgets
-        flags = GTK_DIALOG_DESTROY_WITH_PARENT;
-        dialog = gtk_dialog_new_with_buttons("Message",
-            GTK_WINDOW(widget),
-            flags,
-            ("_OK"),
-            GTK_RESPONSE_NONE,
-            NULL);
-        content_area = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-        label = gtk_label_new(s.ptr);
-
-        // Ensure that the dialog box is destroyed when the user responds
-        g_signal_connect_swapped(dialog,
-            "response",
-            G_CALLBACK(gtk_widget_destroy),
-            dialog);
-
-        // Add the label, and show everything we’ve added
-        gtk_container_add(GTK_CONTAINER(content_area), label);
-        gtk_widget_show_all(dialog);
     } else {
         debug(1, "CURL got HTTP error code %zu result %s\n", curl_esponse_code, s.ptr);
-        free(url);
-        free(s.ptr);
+        safe_free((void**)&url);
+        safe_free((void**)&s.ptr);
         curl_easy_cleanup(curl);
         return;
     }
 
-    free(url);
-    free(s.ptr);
+    safe_free((void**)&url);
     curl_easy_cleanup(curl);
 }
 

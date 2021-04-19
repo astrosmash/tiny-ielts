@@ -8,7 +8,8 @@ typedef struct {
 
 typedef struct {
     Gui* my_gui;
-    Thread* child_thread;
+    Thread* board_top_fetch_thread;
+    Thread* monitor_thread;
     // Main window to (re)draw on
     GtkWidget* window;
 
@@ -40,9 +41,11 @@ static void _Gui_Exit(gpointer, GtkWidget*);
 
 static void _Gui_GetText(GtkEntry*, gpointer);
 
-static void _Gui_RunChildThread(GtkWidget*, gpointer);
-
 static void* thread_func(void*);
+
+extern GuiRuntimeConfig* get_gui_runtime_config(bool);
+extern session_t* get_session(bool);
+extern session_creds_t* get_session_creds(bool);
 
 #include "gui_auxiliary.h"
 
