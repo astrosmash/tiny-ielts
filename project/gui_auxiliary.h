@@ -3,6 +3,7 @@ extern session_t* get_session(bool);
 extern session_creds_t* get_session_creds(bool);
 
 static gboolean update_gui(gpointer);
+static void popup_minimal(GtkWidget*, const char*);
 extern void* task_monitor(void*);
 extern void* worker_func(void*);
 // -------------------------------------------------- Threading

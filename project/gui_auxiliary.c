@@ -49,6 +49,15 @@ gboolean update_gui(gpointer data)
     return FALSE; //  If the function returns FALSE it is automatically removed from the list of event sources and will not be called again.
 }
 
+static void popup_minimal(GtkWidget* parent, const char* msg)
+{
+    struct g_callback_task* dummy_task = malloc_memset(sizeof(struct g_callback_task)); // So we can show a popup in UI.
+    dummy_task->result = malloc_memset(strlen(msg) + 1);
+    strncpy(dummy_task->result, msg, strlen(msg));
+    dummy_task->caller_widget = parent;
+    g_idle_add(update_gui, dummy_task);
+}
+
 void* task_monitor(void* runtime_config)
 {
     //    assert(runtime_config);
@@ -84,18 +93,17 @@ void* worker_func(void* data)
 
     if (!board) { // API rejected our request, is cookie expired? Let's try to receive new cookie with username and password we have populated from file.
         if (!populate_file_from_session(g_config->WorkerData.session->creds, g_config->WorkerData.session)) {
+            const char* msg = "Failed to re-populate cookie into file. Check your credentials.";
+            popup_minimal(g_config->window, msg);
+
             debug(3, "Failed to re-populate cookie into file with creds %s/%s\n", g_config->WorkerData.session->creds->username, g_config->WorkerData.session->creds->password);
             return NULL;
         }
         // Repopulated.
-        debug(3, "Re-populate cookie into file with creds %s/%s succeeded - just re-launch the app!\n", g_config->WorkerData.session->creds->username, g_config->WorkerData.session->creds->password);
         const char* msg = "Looks like cookie in file was invalid, re-populate succeeded! Just re-launch the app";
+        popup_minimal(g_config->window, msg);
 
-        struct g_callback_task* dummy_task = malloc_memset(sizeof(struct g_callback_task)); // So we can show a popup in UI.
-        dummy_task->result = malloc_memset(strlen(msg) + 1);
-        strncpy(dummy_task->result, msg, strlen(msg));
-        dummy_task->caller_widget = g_config->window;
-        g_idle_add(update_gui, dummy_task);
+        debug(3, "Re-populate cookie into file with creds %s/%s succeeded - just re-launch the app!\n", g_config->WorkerData.session->creds->username, g_config->WorkerData.session->creds->password);
         return NULL;
     }
 
