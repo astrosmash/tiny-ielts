@@ -36,7 +36,12 @@ session_creds_t* get_session_creds(bool need_to_allocate)
 
 gboolean update_gui(gpointer data)
 {
+    assert(data);
     struct g_callback_task* task = data;
+
+    assert(task->caller_widget);
+    assert(task->result);
+    debug(4, "Got task result %s \n", task->result);
     GtkWidget* parent = task->caller_widget;
     _Gui_DrawPopupDialog(parent, task->result);
     gtk_widget_queue_draw(parent);
@@ -75,8 +80,24 @@ void* worker_func(void* data)
     debug(3, "passing board %s (cookie %s)\n", g_config->WorkerData.board, g_config->WorkerData.session->cookie);
 
     bool as_moder = true;
-    board_as_moder_t* board = fetch_board_info(g_config->WorkerData.session, g_config->WorkerData.board, as_moder);
-    assert(board); // Will be freed by the caller (_Gui_RunBoardTopFetchThread)
+    board_as_moder_t* board = fetch_board_info(g_config->WorkerData.session, g_config->WorkerData.board, as_moder); // Will be freed by the caller (_Gui_RunBoardTopFetchThread)
+
+    if (!board) { // API rejected our request, is cookie expired? Let's try to receive new cookie with username and password we have populated from file.
+        if (!populate_file_from_session(g_config->WorkerData.session->creds, g_config->WorkerData.session)) {
+            debug(3, "Failed to re-populate cookie into file with creds %s/%s\n", g_config->WorkerData.session->creds->username, g_config->WorkerData.session->creds->password);
+            return NULL;
+        }
+        // Repopulated.
+        debug(3, "Re-populate cookie into file with creds %s/%s succeeded - just re-launch the app!\n", g_config->WorkerData.session->creds->username, g_config->WorkerData.session->creds->password);
+        const char* msg = "Looks like cookie in file was invalid, re-populate succeeded! Just re-launch the app";
+
+        struct g_callback_task* dummy_task = malloc_memset(sizeof(struct g_callback_task)); // So we can show a popup in UI.
+        dummy_task->result = malloc_memset(strlen(msg) + 1);
+        strncpy(dummy_task->result, msg, strlen(msg));
+        dummy_task->caller_widget = g_config->window;
+        g_idle_add(update_gui, dummy_task);
+        return NULL;
+    }
 
     // Start drawing result
     GtkWidget *grid = NULL, *vbox = NULL, *scroll = NULL;
@@ -270,14 +291,13 @@ static void _Gui_RunBoardTopFetchThread(GtkWidget* widget, gpointer data)
 
     // Immediately join it
     char* thread_result = NULL;
-    if (Thread_Join(g_config->board_top_fetch_thread, &thread_result) == 0) {
+    if ((Thread_Join(g_config->board_top_fetch_thread, &thread_result) == 0) && thread_result) {
         debug(3, "Thread %s joined ok, result %s\n", Gui_GetName(g_config->my_gui), thread_result);
+        // Free an object allocated in the thread_func
+        safe_free((void**)&thread_result);
     } else {
         debug(1, "Failed to join thread %s\n", Gui_GetName(g_config->my_gui));
     }
-
-    // Free an object allocated in the thread_func
-    safe_free((void**)&thread_result);
 }
 
 // -------------------------------------------------- Drawings

@@ -33,7 +33,7 @@
 
 // Include debug output
 #define DEBUG 1
-#define DEBUG_LEVEL 5
+#define DEBUG_LEVEL 4
 
 #define MAX_ALLOCABLE_MEM_BLOCKS 4096
 

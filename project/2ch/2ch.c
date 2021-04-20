@@ -275,7 +275,9 @@ extern void* fetch_board_info(session_t* session, const char* board_name, bool a
     return result; // to be freed by caller
 
 cleanup:
-    safe_free((void**)&result);
+    if (result) {
+        safe_free((void**)&result);
+    }
     safe_free((void**)&cookie);
     safe_free((void**)&url);
     safe_free((void**)&s.ptr);
