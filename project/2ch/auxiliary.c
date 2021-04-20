@@ -199,7 +199,7 @@ static CURL* dvach_curl_init(struct curl_string* s, const char* cookie)
     return curl;
 }
 
-static bool submit_curl_task(const char* url, const char* cookie, struct curl_string* s)
+static bool submit_curl_task(const char* url, const char* cookie, struct curl_string* s, void* postfields)
 {
     assert(url);
     assert(cookie);
@@ -207,6 +207,9 @@ static bool submit_curl_task(const char* url, const char* cookie, struct curl_st
 
     CURL* curl = dvach_curl_init(s, cookie);
     curl_easy_setopt(curl, CURLOPT_URL, url);
+    if (postfields) { // POST mode
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postfields);
+    }
 
     CURLcode res = curl_easy_perform(curl);
     if (res != CURLE_OK) {

@@ -1,5 +1,5 @@
 // Authentication
-extern bool populate_session_from_file(session_t* session)
+bool populate_session_from_file(session_t* session)
 {
     assert(session);
 
@@ -62,7 +62,7 @@ extern bool populate_session_from_file(session_t* session)
 }
 
 // Refresh cookie and other contents in the file using session data
-extern bool populate_file_from_session(session_creds_t* creds, session_t* session)
+bool populate_file_from_session(session_creds_t* creds, session_t* session)
 {
     assert(creds);
     assert(session);
@@ -129,7 +129,7 @@ extern bool populate_file_from_session(session_creds_t* creds, session_t* sessio
 }
 
 // Uses given credentials to login and obtain mod info to be later re-used.
-extern ssize_t session_init(session_creds_t* creds, session_t* session)
+ssize_t session_init(session_creds_t* creds, session_t* session)
 {
     assert(creds);
     assert(session);
@@ -138,34 +138,15 @@ extern ssize_t session_init(session_creds_t* creds, session_t* session)
     s.ptr = malloc_memset(s.len + 1);
     s.ptr[0] = '\0';
 
-    CURL* curl = dvach_curl_init(&s, NULL);
-
     char* postfields = malloc_memset(MAX_CRED_LENGTH * 5);
     if (!snprintf(postfields, (MAX_CRED_LENGTH * 5) - 2, "use_cookie=1&nick=%s&password=%s", creds->username, creds->password)) {
         debug(1, "Unable to populate postfields with credentials %s %s\n", creds->username, creds->password);
         goto cleanup;
     }
-
     debug(3, "Populated postfields %s\n", postfields);
-    curl_easy_setopt(curl, CURLOPT_URL, "https://beta.2ch.hk/moder/login?json=1");
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postfields);
 
-    CURLcode res = curl_easy_perform(curl);
-    if (res != CURLE_OK) {
-        debug(1, "Got curl_easy_perform err %s\n", curl_easy_strerror(res));
-        goto cleanup;
-    }
-
-    size_t curl_response_code = 0;
-    res = curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &curl_response_code);
-    if (res != CURLE_OK) {
-        debug(1, "Got curl_easy_getinfo err %s\n", curl_easy_strerror(res));
-        goto cleanup;
-    }
-
-    if (curl_response_code == 200) {
-        debug(3, "CURL result %s\n", s.ptr);
-
+    bool res = submit_curl_task("https://beta.2ch.hk/moder/login?json=1", "no cookie", &s, postfields);
+    if (res) {
         cJSON* parse_result = NULL;
         if ((parse_result = cJSON_Parse(s.ptr)) == NULL) {
 
@@ -182,19 +163,17 @@ extern ssize_t session_init(session_creds_t* creds, session_t* session)
 
         cJSON_Delete(parse_result); // cjson checks for nullptr here
     } else {
-        debug(1, "CURL got http error code %zu result %s\n", curl_response_code, s.ptr);
+        debug(1, "submit_curl_task failed: %u ", res);
         goto cleanup;
     }
 
     safe_free((void**)&postfields);
     safe_free((void**)&s.ptr);
-    curl_easy_cleanup(curl);
     return EXIT_SUCCESS;
 
 cleanup:
     safe_free((void**)&postfields);
     safe_free((void**)&s.ptr);
-    curl_easy_cleanup(curl);
     return EXIT_FAILURE;
 }
 
@@ -205,7 +184,7 @@ cleanup:
 // Populates board info from mod api.
 // Using mod cookie is mandatory.
 
-extern void* fetch_board_info(session_t* session, const char* board_name, bool as_moder)
+void* fetch_board_info(session_t* session, const char* board_name, bool as_moder)
 {
     assert(session);
     assert(board_name);
@@ -244,7 +223,7 @@ extern void* fetch_board_info(session_t* session, const char* board_name, bool a
         }
     }
 
-    bool res = submit_curl_task(url, cookie, &s);
+    bool res = submit_curl_task(url, cookie, &s, NULL);
     if (res) {
         cJSON* parse_result = NULL;
         if ((parse_result = cJSON_Parse(s.ptr)) == NULL) {
@@ -285,27 +264,27 @@ cleanup:
 }
 
 // TODO
-//extern post_t* fetch_all_posts_from_board(session_t* session, board_t* board) {}
+//post_t* fetch_all_posts_from_board(session_t* session, board_t* board) {}
 //
-//extern thread_t* fetch_thread_from_board(session_t* session, board_t* board) {}
+//thread_t* fetch_thread_from_board(session_t* session, board_t* board) {}
 //
-//extern post_t* fetch_post_from_thread(session_t* session, thread_t* thread) {}
+//post_t* fetch_post_from_thread(session_t* session, thread_t* thread) {}
 //
-//extern file_t* fetch_file_from_post(session_t* session, post_t* post) {}
+//file_t* fetch_file_from_post(session_t* session, post_t* post) {}
 
-extern void remove_post(GtkWidget* widget, gpointer data)
+void remove_post(GtkWidget* widget, gpointer data)
 {
     assert(data);
     struct g_callback_task* task = data;
 }
 
-extern void add_local_ban(GtkWidget* widget, gpointer data)
+void add_local_ban(GtkWidget* widget, gpointer data)
 {
     assert(data);
     struct g_callback_task* task = data;
 }
 
-extern void whois(GtkWidget* widget, gpointer data)
+void whois(GtkWidget* widget, gpointer data)
 {
     assert(data);
     struct g_callback_task* task = data;
@@ -328,7 +307,7 @@ extern void whois(GtkWidget* widget, gpointer data)
         return;
     }
 
-    bool res = submit_curl_task(url, "no cookie", &s);
+    bool res = submit_curl_task(url, "no cookie", &s, NULL);
     if (res) {
         task->caller_widget = widget;
         task->result = s.ptr; // to be freed by the caller
@@ -339,7 +318,7 @@ extern void whois(GtkWidget* widget, gpointer data)
     safe_free((void**)&url);
 }
 
-extern void filter_by_ip_per_board(GtkWidget* widget, gpointer data)
+void filter_by_ip_per_board(GtkWidget* widget, gpointer data)
 {
     assert(data);
     struct g_callback_task* task = data;

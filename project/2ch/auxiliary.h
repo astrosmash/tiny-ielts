@@ -38,6 +38,6 @@ extern struct g_callback_task* create_new_task(size_t, void*);
 
 static size_t curl_write_func(void*, size_t, size_t, struct curl_string*);
 static CURL* dvach_curl_init(struct curl_string*, const char*);
-static bool submit_curl_task(const char*, const char*, struct curl_string*);
+static bool submit_curl_task(const char*, const char*, struct curl_string*, void*);
 
 #include "auxiliary.c"
