@@ -24,8 +24,7 @@
 extern bool populate_session_from_file(session_t*);
 extern bool populate_file_from_session(session_creds_t*, session_t*);
 extern ssize_t session_init(session_creds_t*, session_t*);
-extern board_t* fetch_board_info(session_t*, const char*);
-extern board_as_moder_t* fetch_board_info_as_moder(session_t*, const char*);
+extern void* fetch_board_info(session_t*, const char*, bool);
 
 extern void remove_post(GtkWidget*, gpointer);
 extern void add_local_ban(GtkWidget*, gpointer);

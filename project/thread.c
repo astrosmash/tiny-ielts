@@ -1,7 +1,7 @@
 // Thread ctor
 #define Thread_Init (*Thread_Construct)
 
-// Function location and args to it to run in the thread
+// Function location and args for it to run in the thread
 Thread* Thread_Construct(void* (*func_addr)(void*), void* func_arg)
 {
     // Arguments passed to pthread_create
@@ -10,8 +10,8 @@ Thread* Thread_Construct(void* (*func_addr)(void*), void* func_arg)
     assert(func_addr);
     assert(func_arg);
 
-    _Thread_SetName(t, "2ch_worker_thread");
     debug(3, "Allocated new object on %p\n", (void*)t);
+    _Thread_SetName(t, "2ch_worker_thread");
 
     ssize_t op_status = 0;
     op_status = pthread_attr_init(&t->attr);

@@ -21,8 +21,9 @@ typedef struct {
     } WorkerData;
 } GuiRuntimeConfig;
 
+#define NUMBER_OF_AUTH_FORMS 2
 struct GtkEntries {
-    GtkWidget* entry[2];
+    GtkWidget* entry[NUMBER_OF_AUTH_FORMS];
 };
 
 // Gui ctor & dtor
@@ -35,17 +36,9 @@ static char* Gui_GetName(Gui* const);
 // Private methods
 static void _Gui_SetName(Gui*, char*);
 
-// Static methods
 // Callback for exit button that calls dtor, called with swapped params
 static void _Gui_Exit(gpointer, GtkWidget*);
-
 static void _Gui_GetText(GtkEntry*, gpointer);
-
-static void* thread_func(void*);
-
-extern GuiRuntimeConfig* get_gui_runtime_config(bool);
-extern session_t* get_session(bool);
-extern session_creds_t* get_session_creds(bool);
 
 #include "gui_auxiliary.h"
 

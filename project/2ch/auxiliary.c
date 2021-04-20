@@ -1,4 +1,4 @@
-extern const char* get_homedir(void)
+const char* get_homedir(void)
 {
     const char* homedir = NULL;
 
@@ -12,10 +12,8 @@ extern const char* get_homedir(void)
     return homedir;
 }
 
-extern char* creds_file_path(bool need_to_create, bool need_to_delete)
+char* creds_file_path(size_t mode)
 {
-    assert(!(need_to_create && need_to_delete));
-
     const char* homedir = get_homedir();
     const char* account_subdir = "/.mod2ch";
     const char* account_file = "/.creds";
@@ -32,7 +30,7 @@ extern char* creds_file_path(bool need_to_create, bool need_to_delete)
     if ((res = stat(fullpath, &stat_buf))) {
         debug(4, "Cannot access credentials directory %s (%s)\n", fullpath, strerror(errno));
 
-        if (need_to_create) {
+        if (mode & NEED_TO_CREATE) {
             if ((stat_buf.st_mode & S_IFMT) != S_IFDIR) {
                 debug(4, "%s is not a directory, will try to create...\n", fullpath);
             }
@@ -55,7 +53,7 @@ extern char* creds_file_path(bool need_to_create, bool need_to_delete)
     if ((res = stat(fullpath, &stat_buf))) {
         debug(4, "Cannot access credentials file %s (%s)\n", fullpath, strerror(errno));
 
-        if (need_to_create) {
+        if (mode & NEED_TO_CREATE) {
             if ((stat_buf.st_mode & S_IFMT) != S_IFREG) {
                 debug(4, "%s is not a file, will try to create...\n", fullpath);
             }
@@ -67,12 +65,13 @@ extern char* creds_file_path(bool need_to_create, bool need_to_delete)
             }
         } else {
             // Cannot access a file and need_to_create = false
+            debug(1, "Cannot access a file and need_to_create = false %s\n", fullpath);
             safe_free((void**)&fullpath);
             return NULL;
         }
     }
 
-    if (need_to_delete) {
+    if (mode & NEED_TO_DELETE) {
         if (unlink(fullpath)) {
             debug(1, "Was not able to remove %s (%s)\n", fullpath, strerror(errno));
         }
@@ -80,6 +79,70 @@ extern char* creds_file_path(bool need_to_create, bool need_to_delete)
 
     // to be freed by caller.
     return fullpath;
+}
+
+void* task_manager(size_t mode, void* task, size_t type)
+{
+    static size_t allocated_tasks = 0;
+    static struct g_callback_task* pool[MAX_NUM_OF_TASKS] = { NULL };
+    struct g_callback_task* task_to_provide = NULL;
+
+    if (mode & INSERT_TASK) { // insert mode
+        struct g_callback_task* insert_task = task;
+        insert_task->type = type;
+        assert(allocated_tasks <= MAX_NUM_OF_TASKS);
+        debug(1, "inserting task %p to pool as #%zu (type %zu)", (void*)insert_task, allocated_tasks, type);
+        pool[allocated_tasks] = insert_task;
+        ++allocated_tasks;
+        return NULL;
+    } else if (mode & LOOK_FOR_TASKS) {
+        for (size_t i = 0; i <= MAX_NUM_OF_TASKS; ++i) {
+            //            debug(1, "searching for tasks of type %zu, now at %zu", type, i);
+            if (((task_to_provide = pool[i])) && (task_to_provide->type == type && task_to_provide->result)) { // hit
+                debug(1, "found match of type #%zu at %p", task_to_provide->type, (void*)task_to_provide);
+                return task_to_provide;
+            }
+        }
+    }
+    return NULL;
+}
+
+struct g_callback_task* create_new_task(size_t task_type, void* what)
+{
+    struct g_callback_task* remove_post_task = malloc_memset(sizeof(struct g_callback_task));
+    struct g_callback_task* add_local_ban_task = malloc_memset(sizeof(struct g_callback_task));
+    struct g_callback_task* whois_post_task = malloc_memset(sizeof(struct g_callback_task));
+    struct g_callback_task* filter_by_ip_per_board_task = malloc_memset(sizeof(struct g_callback_task));
+
+    switch (task_type) {
+    case REMOVE_POST:
+        remove_post_task->what = what;
+        task_manager(INSERT_TASK, remove_post_task, task_type);
+        return remove_post_task;
+        break;
+
+    case ADD_LOCAL_BAN:
+        add_local_ban_task->what = what;
+        task_manager(INSERT_TASK, add_local_ban_task, task_type);
+        return add_local_ban_task;
+        break;
+
+    case WHOIS_POST:
+        whois_post_task->what = what;
+        task_manager(INSERT_TASK, whois_post_task, task_type);
+        return whois_post_task;
+        break;
+
+    case FILTER_BY_IP_PER_BOARD:
+        filter_by_ip_per_board_task->what = what;
+        task_manager(INSERT_TASK, filter_by_ip_per_board_task, task_type);
+        return filter_by_ip_per_board_task;
+        break;
+
+    default:
+        debug(1, "Unknown task type %zu\n", task_type);
+        return NULL;
+    }
 }
 
 // Helper function for curl to write output.
@@ -136,66 +199,38 @@ static CURL* dvach_curl_init(struct curl_string* s, const char* cookie)
     return curl;
 }
 
-extern void* task_manager(size_t mode, void* task, size_t type)
+static bool submit_curl_task(const char* url, const char* cookie, struct curl_string* s)
 {
-    static size_t allocated_tasks = 0;
-    static struct g_callback_task* pool[MAX_NUM_OF_TASKS] = { NULL };
-    struct g_callback_task* task_to_provide = NULL;
+    assert(url);
+    assert(cookie);
+    assert(s);
 
-    if (mode & INSERT_TASK) { // insert mode
-        struct g_callback_task* insert_task = task;
-        insert_task->type = type;
-        assert(allocated_tasks <= MAX_NUM_OF_TASKS);
-        debug(1, "inserting task %p to pool as #%zu (type %zu)", (void*)insert_task, allocated_tasks, type);
-        pool[allocated_tasks] = insert_task;
-        ++allocated_tasks;
-        return NULL;
-    } else if (mode & LOOK_FOR_TASKS) {
-        for (size_t i = 0; i <= MAX_NUM_OF_TASKS; ++i) {
-            //            debug(1, "searching for tasks of type %zu, now at %zu", type, i);
-            if (((task_to_provide = pool[i])) && (task_to_provide->type == type && task_to_provide->result)) { // hit
-                debug(1, "found match of type #%zu at %p", task_to_provide->type, (void*)task_to_provide);
-                return task_to_provide;
-            }
-        }
+    CURL* curl = dvach_curl_init(s, cookie);
+    curl_easy_setopt(curl, CURLOPT_URL, url);
+
+    CURLcode res = curl_easy_perform(curl);
+    if (res != CURLE_OK) {
+        debug(1, "Got curl_easy_perform err %s\n", curl_easy_strerror(res));
+        curl_easy_cleanup(curl);
+        return false;
     }
-    return NULL;
-}
 
-extern struct g_callback_task* get_task(size_t task_type, void* what)
-{
-    struct g_callback_task* remove_post_task = malloc_memset(sizeof(struct g_callback_task));
-    struct g_callback_task* add_local_ban_task = malloc_memset(sizeof(struct g_callback_task));
-    struct g_callback_task* whois_post_task = malloc_memset(sizeof(struct g_callback_task));
-    struct g_callback_task* filter_by_ip_per_board_task = malloc_memset(sizeof(struct g_callback_task));
-
-    switch (task_type) {
-    case REMOVE_POST:
-        remove_post_task->what = what;
-        task_manager(INSERT_TASK, remove_post_task, task_type);
-        return remove_post_task;
-        break;
-
-    case ADD_LOCAL_BAN:
-        add_local_ban_task->what = what;
-        task_manager(INSERT_TASK, add_local_ban_task, task_type);
-        return add_local_ban_task;
-        break;
-
-    case WHOIS_POST:
-        whois_post_task->what = what;
-        task_manager(INSERT_TASK, whois_post_task, task_type);
-        return whois_post_task;
-        break;
-
-    case FILTER_BY_IP_PER_BOARD:
-        filter_by_ip_per_board_task->what = what;
-        task_manager(INSERT_TASK, filter_by_ip_per_board_task, task_type);
-        return filter_by_ip_per_board_task;
-        break;
-
-    default:
-        debug(1, "Unknown task type %zu\n", task_type);
-        return NULL;
+    size_t curl_esponse_code = 0;
+    res = curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &curl_esponse_code);
+    if (res != CURLE_OK) {
+        debug(1, "Got curl_easy_getinfo err %s\n", curl_easy_strerror(res));
+        curl_easy_cleanup(curl);
+        return false;
     }
+
+    if (curl_esponse_code == 200) {
+        debug(3, "%s CURL result %s\n", url, s->ptr);
+    } else {
+        debug(1, "CURL got HTTP error code %zu result %s\n", curl_esponse_code, s->ptr);
+        curl_easy_cleanup(curl);
+        return false;
+    }
+
+    curl_easy_cleanup(curl);
+    return true;
 }

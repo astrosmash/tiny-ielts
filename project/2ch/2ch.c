@@ -3,7 +3,7 @@ extern bool populate_session_from_file(session_t* session)
 {
     assert(session);
 
-    char* fullpath = creds_file_path(false, false);
+    char* fullpath = creds_file_path(NEED_TO_CHECK);
     assert(fullpath);
 
     debug(3, "Reading credentials from %s\n", fullpath);
@@ -27,7 +27,7 @@ extern bool populate_session_from_file(session_t* session)
         // no content was read in file or it seems corrupt
         // remove it so it gets re-created on next app launch
         debug(1, "No content was read or auth file corrupt? Removing %s\n", fullpath);
-        fullpath = creds_file_path(false, true); // remove file
+        fullpath = creds_file_path(NEED_TO_DELETE); // remove file
         safe_free((void**)&buf);
         safe_free((void**)&fullpath);
         return false;
@@ -87,7 +87,7 @@ extern bool populate_file_from_session(session_creds_t* creds, session_t* sessio
     }
 
     // No file was present and we are authenticating. Create a file
-    char* fullpath = creds_file_path(true, false);
+    char* fullpath = creds_file_path(NEED_TO_CREATE);
     assert(fullpath);
     debug(3, "Writing credentials to %s\n", fullpath);
 
@@ -198,97 +198,28 @@ cleanup:
     return EXIT_FAILURE;
 }
 
+// Not as moder:
 // Populates board info from catalog.
 // Using mod cookie is optional.
-
-extern board_t* fetch_board_info(session_t* session, const char* board_name)
-{
-    assert(session);
-    assert(board_name);
-
-    board_t* board = malloc_memset(sizeof(board_t));
-    char* cookie = malloc_memset(MAX_CRED_LENGTH);
-    char* url = malloc_memset(MAX_CRED_LENGTH);
-
-    struct curl_string s = { .len = 0 };
-    s.ptr = malloc_memset(s.len + 1);
-    s.ptr[0] = '\0';
-
-    CURL* curl = NULL;
-
-    if (!snprintf(cookie, MAX_CRED_LENGTH - 2, "Cookie: moder=%s", session->cookie)) {
-        debug(1, "Cannot assemble Cookie header moder=%s", session->cookie);
-        goto cleanup;
-    }
-
-    if (!snprintf(url, MAX_CRED_LENGTH - 2, "https://2ch.hk/%s/catalog.json", board_name)) {
-        debug(1, "Cannot assemble URL https://2ch.hk/%s/catalog.json", board_name);
-        goto cleanup;
-    }
-
-    curl = dvach_curl_init(&s, cookie);
-    curl_easy_setopt(curl, CURLOPT_URL, url);
-
-    CURLcode res = curl_easy_perform(curl);
-    if (res != CURLE_OK) {
-        debug(1, "Got curl_easy_perform err %s\n", curl_easy_strerror(res));
-        goto cleanup;
-    }
-
-    size_t curl_esponse_code = 0;
-    res = curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &curl_esponse_code);
-    if (res != CURLE_OK) {
-        debug(1, "Got curl_easy_getinfo err %s\n", curl_easy_strerror(res));
-        goto cleanup;
-    }
-
-    if (curl_esponse_code == 200) {
-        debug(3, "%s CURL result %s\n", url, s.ptr);
-
-        cJSON* parse_result = NULL;
-        if ((parse_result = cJSON_Parse(s.ptr)) == NULL) {
-
-            const char* cjson_err = cJSON_GetErrorPtr();
-            if (cjson_err) {
-                debug(1, "cJSON err: %s", cjson_err);
-            }
-            cJSON_Delete(parse_result); // cjson checks for nullptr here
-            goto cleanup;
-        }
-
-        dvach_populate_board(board, parse_result);
-
-        cJSON_Delete(parse_result); // cjson checks for nullptr here
-    } else {
-        debug(1, "CURL got HTTP error code %zu result %s\n", curl_esponse_code, s.ptr);
-        goto cleanup;
-    }
-
-    safe_free((void**)&cookie);
-    safe_free((void**)&url);
-    safe_free((void**)&s.ptr);
-    curl_easy_cleanup(curl);
-    return board; // to be freed by caller
-
-cleanup:
-    safe_free((void**)&board);
-    safe_free((void**)&cookie);
-    safe_free((void**)&url);
-    safe_free((void**)&s.ptr);
-    if (curl)
-        curl_easy_cleanup(curl);
-    return NULL;
-}
-
+// As moder:
 // Populates board info from mod api.
 // Using mod cookie is mandatory.
 
-extern board_as_moder_t* fetch_board_info_as_moder(session_t* session, const char* board_name)
+extern void* fetch_board_info(session_t* session, const char* board_name, bool as_moder)
 {
     assert(session);
     assert(board_name);
 
-    board_as_moder_t* board = malloc_memset(sizeof(board_as_moder_t));
+    void* result = NULL;
+
+    if (as_moder) {
+        board_as_moder_t* board = malloc_memset(sizeof(board_as_moder_t));
+        result = board;
+    } else {
+        board_t* board = malloc_memset(sizeof(board_t));
+        result = board;
+    }
+
     char* cookie = malloc_memset(MAX_CRED_LENGTH);
     char* url = malloc_memset(MAX_CRED_LENGTH);
 
@@ -296,37 +227,25 @@ extern board_as_moder_t* fetch_board_info_as_moder(session_t* session, const cha
     s.ptr = malloc_memset(s.len + 1);
     s.ptr[0] = '\0';
 
-    CURL* curl = NULL;
-
     if (!snprintf(cookie, MAX_CRED_LENGTH - 2, "Cookie: moder=%s", session->cookie)) {
         debug(1, "Cannot assemble Cookie header moder=%s", session->cookie);
         goto cleanup;
     }
 
-    if (!snprintf(url, MAX_CRED_LENGTH - 2, "https://beta.2ch.hk/moder/posts/%s?json=1", board_name)) {
-        debug(1, "Cannot assemble URL https://beta.2ch.hk/moder/posts/%s?json=1", board_name);
-        goto cleanup;
+    if (as_moder) {
+        if (!snprintf(url, MAX_CRED_LENGTH - 2, "https://beta.2ch.hk/moder/posts/%s?json=1", board_name)) {
+            debug(1, "Cannot assemble URL https://beta.2ch.hk/moder/posts/%s?json=1", board_name);
+            goto cleanup;
+        }
+    } else {
+        if (!snprintf(url, MAX_CRED_LENGTH - 2, "https://2ch.hk/%s/catalog.json", board_name)) {
+            debug(1, "Cannot assemble URL https://2ch.hk/%s/catalog.json", board_name);
+            goto cleanup;
+        }
     }
 
-    curl = dvach_curl_init(&s, cookie);
-    curl_easy_setopt(curl, CURLOPT_URL, url);
-
-    CURLcode res = curl_easy_perform(curl);
-    if (res != CURLE_OK) {
-        debug(1, "Got curl_easy_perform err %s\n", curl_easy_strerror(res));
-        goto cleanup;
-    }
-
-    size_t curl_esponse_code = 0;
-    res = curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &curl_esponse_code);
-    if (res != CURLE_OK) {
-        debug(1, "Got curl_easy_getinfo err %s\n", curl_easy_strerror(res));
-        goto cleanup;
-    }
-
-    if (curl_esponse_code == 200) {
-        debug(3, "%s CURL result %s\n", url, s.ptr);
-
+    bool res = submit_curl_task(url, cookie, &s);
+    if (res) {
         cJSON* parse_result = NULL;
         if ((parse_result = cJSON_Parse(s.ptr)) == NULL) {
 
@@ -338,27 +257,28 @@ extern board_as_moder_t* fetch_board_info_as_moder(session_t* session, const cha
             goto cleanup;
         }
 
-        dvach_populate_board_as_moder(board_name, board, parse_result);
+        if (as_moder) {
+            dvach_populate_board_as_moder(board_name, result, parse_result);
+        } else {
+            dvach_populate_board(result, parse_result);
+        }
 
         cJSON_Delete(parse_result); // cjson checks for nullptr here
     } else {
-        debug(1, "CURL got HTTP error code %zu result %s\n", curl_esponse_code, s.ptr);
+        debug(1, "submit_curl_task failed: %u ", res);
         goto cleanup;
     }
 
     safe_free((void**)&cookie);
     safe_free((void**)&url);
     safe_free((void**)&s.ptr);
-    curl_easy_cleanup(curl);
-    return board; // to be freed by caller
+    return result; // to be freed by caller
 
 cleanup:
-    safe_free((void**)&board);
+    safe_free((void**)&result);
     safe_free((void**)&cookie);
     safe_free((void**)&url);
     safe_free((void**)&s.ptr);
-    if (curl)
-        curl_easy_cleanup(curl);
     return NULL;
 }
 
@@ -387,8 +307,10 @@ extern void whois(GtkWidget* widget, gpointer data)
 {
     assert(data);
     struct g_callback_task* task = data;
+
     assert(task->what);
     const char* ip = task->what;
+
     debug(3, "Performing whois for %s\n", ip);
 
     char* url = malloc_memset(MAX_CRED_LENGTH);
@@ -397,8 +319,6 @@ extern void whois(GtkWidget* widget, gpointer data)
     s.ptr = malloc_memset(s.len + 1);
     s.ptr[0] = '\0';
 
-    CURL* curl = NULL;
-
     if (!snprintf(url, MAX_CRED_LENGTH - 2, "http://ipwhois.app/line/%s", ip)) {
         debug(1, "Cannot assemble URL http://ipwhois.app/line/%s", ip);
         safe_free((void**)&url);
@@ -406,44 +326,15 @@ extern void whois(GtkWidget* widget, gpointer data)
         return;
     }
 
-    curl = dvach_curl_init(&s, "no cookie"); // no cookie
-    curl_easy_setopt(curl, CURLOPT_URL, url);
-
-    CURLcode res = curl_easy_perform(curl);
-    if (res != CURLE_OK) {
-        debug(1, "Got curl_easy_perform err %s\n", curl_easy_strerror(res));
-        safe_free((void**)&url);
-        safe_free((void**)&s.ptr);
-        curl_easy_cleanup(curl);
-        return;
-    }
-
-    size_t curl_esponse_code = 0;
-    res = curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &curl_esponse_code);
-    if (res != CURLE_OK) {
-        debug(1, "Got curl_easy_getinfo err %s\n", curl_easy_strerror(res));
-        safe_free((void**)&url);
-        safe_free((void**)&s.ptr);
-        curl_easy_cleanup(curl);
-        return;
-    }
-
-    if (curl_esponse_code == 200) {
-        debug(3, "%s CURL result %s\n", url, s.ptr);
-
+    bool res = submit_curl_task(url, "no cookie", &s);
+    if (res) {
         task->caller_widget = widget;
-        task->result = s.ptr; // to be freed by caller
-
+        task->result = s.ptr; // to be freed by the caller
     } else {
-        debug(1, "CURL got HTTP error code %zu result %s\n", curl_esponse_code, s.ptr);
-        safe_free((void**)&url);
-        safe_free((void**)&s.ptr);
-        curl_easy_cleanup(curl);
-        return;
+        debug(1, "submit_curl_task failed: %u ", res);
     }
 
     safe_free((void**)&url);
-    curl_easy_cleanup(curl);
 }
 
 extern void filter_by_ip_per_board(GtkWidget* widget, gpointer data)
