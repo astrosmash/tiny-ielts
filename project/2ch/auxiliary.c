@@ -119,25 +119,21 @@ struct g_callback_task* create_new_task(size_t task_type, void* what)
         remove_post_task->what = what;
         task_manager(INSERT_TASK, remove_post_task, task_type);
         return remove_post_task;
-        break;
 
     case ADD_LOCAL_BAN:
         add_local_ban_task->what = what;
         task_manager(INSERT_TASK, add_local_ban_task, task_type);
         return add_local_ban_task;
-        break;
 
     case WHOIS_POST:
         whois_post_task->what = what;
         task_manager(INSERT_TASK, whois_post_task, task_type);
         return whois_post_task;
-        break;
 
     case FILTER_BY_IP_PER_BOARD:
         filter_by_ip_per_board_task->what = what;
         task_manager(INSERT_TASK, filter_by_ip_per_board_task, task_type);
         return filter_by_ip_per_board_task;
-        break;
 
     default:
         debug(1, "Unknown task type %zu\n", task_type);

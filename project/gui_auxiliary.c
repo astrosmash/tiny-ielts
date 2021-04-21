@@ -67,7 +67,7 @@ void* task_monitor(void* runtime_config)
     struct g_callback_task* task = malloc_memset(sizeof(struct g_callback_task));
 
     while (true) {
-        for (size_t task_type = REMOVE_POST; task_type <= FILTER_BY_IP_PER_BOARD; ++task_type) {
+        for (size_t task_type = REMOVE_POST; task_type < FILTER_BY_IP_PER_BOARD; ++task_type) {
             if (((task = task_manager(LOOK_FOR_TASKS, NULL, task_type))) != NULL) { // We have a result, let's draw it
                 debug(1, "Got task result to draw: %s", task->result);
                 g_idle_add(update_gui, task);
