@@ -129,7 +129,7 @@ void* worker_func(void* data)
 
     gtk_container_add(GTK_CONTAINER(scroll), grid);
 
-    vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 20);
     assert(vbox);
 
     for (size_t i = 0; i < sizeof(board->post) / sizeof(*board->post); ++i) {
@@ -177,7 +177,7 @@ void* worker_func(void* data)
             // The post
             char* const post = malloc_memset(MAX_ARBITRARY_CHAR_LENGTH);
             assert(post);
-            if (!banned) {
+            if (banned) {
                 snprintf(post, MAX_ARBITRARY_CHAR_LENGTH - 1, "<span color='#FFCCCC'>(Banned)</span> <span color='#E0E0E0'> <i>%s</i> <b>#%zu</b> %s </span>", ip, post_num, post_comment);
             } else {
                 snprintf(post, MAX_ARBITRARY_CHAR_LENGTH - 1, "<i>%s</i> <b>#%zu</b> %s", ip, post_num, post_comment);
@@ -192,10 +192,10 @@ void* worker_func(void* data)
             gtk_label_set_markup(GTK_LABEL(post_label), post);
             gtk_container_add(GTK_CONTAINER(eventbox_post), post_label);
 
-            // Finally, separator, followed by next horizontal box
-            GtkWidget* separator = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
-            assert(separator);
-            gtk_container_add(GTK_CONTAINER(vbox), separator);
+            //            // Finally, separator, followed by next horizontal box
+            //            GtkWidget* separator = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+            //            assert(separator);
+            //            gtk_container_add(GTK_CONTAINER(vbox), separator);
 
             // Add context menus for posts
             GtkWidget* parent_menu = gtk_menu_new();
@@ -216,10 +216,10 @@ void* worker_func(void* data)
             gtk_widget_show(submenu_option_whois);
             gtk_menu_shell_append(GTK_MENU_SHELL(parent_menu), submenu_option_whois);
 
-            GtkWidget* submenu_option_filter_author = gtk_menu_item_new_with_label("Все с этого IP");
-            assert(submenu_option_filter_author);
-            gtk_widget_show(submenu_option_filter_author);
-            gtk_menu_shell_append(GTK_MENU_SHELL(parent_menu), submenu_option_filter_author);
+            //            GtkWidget* submenu_option_filter_author = gtk_menu_item_new_with_label("Все с этого IP");
+            //            assert(submenu_option_filter_author);
+            //            gtk_widget_show(submenu_option_filter_author);
+            //            gtk_menu_shell_append(GTK_MENU_SHELL(parent_menu), submenu_option_filter_author);
 
             struct g_callback_task* remove_post_task = create_new_task(REMOVE_POST, board->post);
             g_signal_connect(G_OBJECT(submenu_option_remove_post), "activate",
@@ -236,9 +236,9 @@ void* worker_func(void* data)
             g_signal_connect(G_OBJECT(submenu_option_whois), "activate",
                 G_CALLBACK(whois), whois_post_task);
 
-            struct g_callback_task* filter_by_ip_per_board_task = create_new_task(FILTER_BY_IP_PER_BOARD, board->post);
-            g_signal_connect(G_OBJECT(submenu_option_filter_author), "activate",
-                G_CALLBACK(filter_by_ip_per_board), filter_by_ip_per_board_task);
+            //            struct g_callback_task* filter_by_ip_per_board_task = create_new_task(FILTER_BY_IP_PER_BOARD, board->post);
+            //            g_signal_connect(G_OBJECT(submenu_option_filter_author), "activate",
+            //                G_CALLBACK(filter_by_ip_per_board), filter_by_ip_per_board_task);
 
             //            g_signal_connect_swapped(G_OBJECT(submenu_option_remove_post), "activate",
             //                G_CALLBACK(gtk_window_iconify), GTK_WINDOW(my_app_config->window));
@@ -269,7 +269,13 @@ void* worker_func(void* data)
         }
     }
 
-    gtk_grid_attach(GTK_GRID(grid), vbox, 0, 1, 1, 1);
+    // Search box
+    GtkWidget* entry = gtk_entry_new();
+    assert(entry);
+    gtk_grid_attach(GTK_GRID(grid), entry, 0, 1, 1, 1);
+    g_signal_connect(GTK_ENTRY(entry), "activate", G_CALLBACK(_Gui_RedrawViewTextMatch), vbox);
+
+    gtk_grid_attach(GTK_GRID(grid), vbox, 0, 2, 1, 1);
     gtk_widget_show_all(g_config->window);
 
     return board; // to be freed by the caller
@@ -321,6 +327,7 @@ static void _Gui_CleanMainChildren(GtkWidget* widget)
             debug(3, "Clearing child at %p\n", iter->data);
             gtk_widget_destroy(GTK_WIDGET(iter->data));
         }
+        g_list_free(children);
     }
 }
 
@@ -503,16 +510,75 @@ static void _Gui_DrawAuthScreen(GtkWidget* widget, gpointer data)
         gtk_grid_attach(GTK_GRID(grid), password_entry, 0, 6, 1, 1);
         gtk_widget_set_name(password_entry, "password_entry");
 
-        struct GtkEntries* entries = malloc_memset(sizeof(struct GtkEntries)); // to be freed by _Gui_GetText
+        struct GtkEntries* entries = malloc_memset(sizeof(struct GtkEntries)); // to be freed by _Gui_GetAuthText
         entries->entry[0] = username_entry;
         entries->entry[1] = password_entry;
 
-        g_signal_connect(GTK_ENTRY(username_entry), "activate", G_CALLBACK(_Gui_GetText), entries);
-        g_signal_connect(GTK_ENTRY(password_entry), "activate", G_CALLBACK(_Gui_GetText), entries);
+        g_signal_connect(GTK_ENTRY(username_entry), "activate", G_CALLBACK(_Gui_GetAuthText), entries);
+        g_signal_connect(GTK_ENTRY(password_entry), "activate", G_CALLBACK(_Gui_GetAuthText), entries);
 
         pressed = true;
 
         // redraw
         gtk_widget_show_all(box);
+    }
+}
+
+static void _Gui_RedrawViewTextMatch(GtkWidget* parent, gpointer data)
+{
+    assert(parent);
+    assert(data);
+
+    size_t removed_num = 0;
+    GtkWidget* removed_widgets[MAX_NUM_OF_POSTS_PER_BOARD_AS_MODER] = { NULL };
+    GtkWidget* vbox = data;
+
+    const char* pattern_to_match = gtk_entry_get_text(GTK_ENTRY(parent));
+    debug(4, "Looking for %s ", pattern_to_match);
+
+    if (GTK_IS_CONTAINER(vbox)) {
+        GList* vbox_widgets = gtk_container_get_children(GTK_CONTAINER(vbox));
+
+        for (const GList* vbox_iter = vbox_widgets; vbox_iter != NULL; vbox_iter = g_list_next(vbox_iter)) {
+            if (GTK_IS_CONTAINER(vbox_iter->data)) {
+                GList* post_view = gtk_container_get_children(GTK_CONTAINER(vbox_iter->data));
+
+                for (const GList* post_elements = post_view; post_elements != NULL; post_elements = g_list_next(post_elements)) {
+                    if (GTK_IS_CONTAINER(post_elements->data)) {
+                        GList* post_box = gtk_container_get_children(GTK_CONTAINER(post_elements->data));
+
+                        for (const GList* posts = post_box; posts != NULL && GTK_IS_LABEL(posts->data); posts = g_list_next(posts)) {
+                            const char* current_label_text = gtk_label_get_label(GTK_LABEL(posts->data));
+                            if (strlen(current_label_text)) {
+                                debug(4, "Comparing with %s ", current_label_text);
+
+                                if (strstr(current_label_text, pattern_to_match)) {
+                                    debug(4, "%s contains %s!\n", current_label_text, pattern_to_match);
+                                } else {
+                                    debug(4, "%s does not contain %s!\n", current_label_text, pattern_to_match);
+                                    // Destroy not only post, but the view with a post
+                                    removed_widgets[removed_num] = (GtkWidget*)vbox_iter->data;
+                                    ++removed_num;
+                                    g_object_ref(GTK_WIDGET(vbox_iter->data)); // to be able to restore it later
+                                    gtk_container_remove(GTK_CONTAINER(vbox), GTK_WIDGET(vbox_iter->data));
+                                }
+                            }
+                            break;
+                        }
+                        g_list_free(post_box);
+                    }
+                }
+                g_list_free(post_view);
+            }
+        }
+
+        for (size_t i = 0; i <= removed_num; ++i) {
+            if (removed_widgets[i]) {
+                debug(4, "Restoring %p (%zu)\n", (void*)removed_widgets[i], i);
+                gtk_container_add(GTK_CONTAINER(vbox), GTK_WIDGET(removed_widgets[i]));
+                gtk_widget_show_all(vbox);
+            }
+        }
+        g_list_free(vbox_widgets);
     }
 }

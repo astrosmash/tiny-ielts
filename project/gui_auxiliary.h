@@ -15,4 +15,5 @@ static void _Gui_DrawPopupDialog(GtkWidget*, void*);
 static bool _Gui_DrawMainScreen(GuiRuntimeConfig*);
 static void _Gui_DrawLoginInvitationScreen(GuiRuntimeConfig*);
 static void _Gui_DrawAuthScreen(GtkWidget*, gpointer);
+static void _Gui_RedrawViewTextMatch(GtkWidget*, gpointer);
 #include "gui_auxiliary.c"

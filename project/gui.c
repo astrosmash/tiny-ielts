@@ -115,7 +115,7 @@ static void _Gui_Exit(gpointer data, GtkWidget* widget)
     Gui_Destruct(&g_config->my_gui);
 }
 
-static void _Gui_GetText(GtkEntry* entry, gpointer data)
+static void _Gui_GetAuthText(GtkEntry* entry, gpointer data)
 {
     assert(entry);
     assert(data);

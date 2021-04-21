@@ -38,7 +38,7 @@ static void _Gui_SetName(Gui*, char*);
 
 // Callback for exit button that calls dtor, called with swapped params
 static void _Gui_Exit(gpointer, GtkWidget*);
-static void _Gui_GetText(GtkEntry*, gpointer);
+static void _Gui_GetAuthText(GtkEntry*, gpointer);
 
 #include "gui_auxiliary.h"
 
