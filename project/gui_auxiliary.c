@@ -451,12 +451,12 @@ static void _Gui_DrawLoginInvitationScreen(GuiRuntimeConfig* my_app_config)
     gtk_container_add(GTK_CONTAINER(box), grid);
     gtk_widget_set_name(grid, "main_grid");
 
-    label = gtk_label_new("No local account found. Do you want to authenticate?");
+    label = gtk_label_new("No local configuration found. Do you want create it?");
     assert(label);
     gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_CENTER);
     gtk_label_set_line_wrap(GTK_LABEL(label), FALSE);
     gtk_grid_attach(GTK_GRID(grid), label, 0, 0, 1, 1);
-    gtk_widget_set_name(label, "no_account_warning");
+    gtk_widget_set_name(label, "no_config_warning");
 
     button = gtk_button_new_with_label("Yes");
     assert(button);
@@ -486,29 +486,29 @@ static void _Gui_DrawAuthScreen(GtkWidget* widget, gpointer data)
         gtk_container_add(GTK_CONTAINER(box), grid);
         gtk_widget_set_name(grid, "main_grid");
 
-        label = gtk_label_new("Username");
+        label = gtk_label_new("Spreadsheet Key");
         assert(label);
         gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_CENTER);
         gtk_label_set_line_wrap(GTK_LABEL(label), FALSE);
         gtk_grid_attach(GTK_GRID(grid), label, 0, 3, 1, 1);
-        gtk_widget_set_name(label, "username_label");
+        gtk_widget_set_name(label, "spreadsheet_key_label");
 
         username_entry = gtk_entry_new();
         assert(username_entry);
         gtk_grid_attach(GTK_GRID(grid), username_entry, 0, 4, 1, 1);
-        gtk_widget_set_name(username_entry, "username_entry");
+        gtk_widget_set_name(username_entry, "spreadsheet_key_entry");
 
-        label = gtk_label_new("Password");
+        label = gtk_label_new("Spreadsheet GID");
         assert(label);
         gtk_label_set_justify(GTK_LABEL(label), GTK_JUSTIFY_CENTER);
         gtk_label_set_line_wrap(GTK_LABEL(label), FALSE);
         gtk_grid_attach(GTK_GRID(grid), label, 0, 5, 1, 1);
-        gtk_widget_set_name(label, "password_label");
+        gtk_widget_set_name(label, "spreadsheet_gid_label");
 
         password_entry = gtk_entry_new();
         assert(password_entry);
         gtk_grid_attach(GTK_GRID(grid), password_entry, 0, 6, 1, 1);
-        gtk_widget_set_name(password_entry, "password_entry");
+        gtk_widget_set_name(password_entry, "spreadsheet_gid_entry");
 
         struct GtkEntries* entries = malloc_memset(sizeof(struct GtkEntries)); // to be freed by _Gui_GetAuthText
         entries->entry[0] = username_entry;

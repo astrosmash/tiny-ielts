@@ -3,7 +3,7 @@ bool populate_session_from_file(session_t* session)
 {
     assert(session);
 
-    char* fullpath = creds_file_path(NEED_TO_CHECK);
+    char* fullpath = config_file_path(NEED_TO_CHECK);
     assert(fullpath);
 
     debug(3, "Reading credentials from %s\n", fullpath);
@@ -27,7 +27,7 @@ bool populate_session_from_file(session_t* session)
         // no content was read in file or it seems corrupt
         // remove it so it gets re-created on next app launch
         debug(1, "No content was read or auth file corrupt? Removing %s\n", fullpath);
-        fullpath = creds_file_path(NEED_TO_DELETE); // remove file
+        fullpath = config_file_path(NEED_TO_DELETE); // remove file
         safe_free((void**)&buf);
         safe_free((void**)&fullpath);
         return false;
@@ -67,27 +67,16 @@ bool populate_file_from_session(session_creds_t* creds, session_t* session)
     assert(creds);
     assert(session);
 
-    debug(3, "Triggering session_init with user %s pass %s\n", creds->username, creds->password);
-
-    bool allowed = false;
-    for (size_t i = 0; i < ARRAY_SIZE(client_whitelisted_users); i++) {
-        if (strcmp(*(client_whitelisted_users + i), creds->username) == 0) {
-            allowed = true;
-        }
-    }
-    if (!allowed) {
-        debug(1, "You are not whitelisted to use this client! %s", creds->username);
-        return false;
-    }
+    debug(3, "Trying to download CSV with Key %s GID %s\n", creds->username, creds->password);
 
     ssize_t session_res = 0;
     if ((session_res = session_init(creds, session))) {
-        debug(1, "Was not able to trigger session_init with user %s pass %s (%zd)\n", creds->username, creds->password, session_res);
+        debug(1, "Was not able to download CSV with Key %s GID %s (%zd)\n", creds->username, creds->password, session_res);
         return false;
     }
 
     // No file was present and we are authenticating. Create a file
-    char* fullpath = creds_file_path(NEED_TO_CREATE);
+    char* fullpath = config_file_path(NEED_TO_CREATE);
     assert(fullpath);
     debug(3, "Writing credentials to %s\n", fullpath);
 
@@ -138,14 +127,14 @@ ssize_t session_init(session_creds_t* creds, session_t* session)
     s.ptr = malloc_memset(s.len + 1);
     s.ptr[0] = '\0';
 
-    char* postfields = malloc_memset(MAX_CRED_LENGTH * 5);
-    if (!snprintf(postfields, (MAX_CRED_LENGTH * 5) - 2, "use_cookie=1&nick=%s&password=%s", creds->username, creds->password)) {
-        debug(1, "Unable to populate postfields with credentials %s %s\n", creds->username, creds->password);
+    char* url = malloc_memset(MAX_CRED_LENGTH);
+    if (!snprintf(url, MAX_CRED_LENGTH - 2, "https://docs.google.com/spreadsheets/d/%s/export?gid=%s&format=csv", session->creds->username, session->creds->password)) {
+        debug(1, "Cannot assemble URL https://docs.google.com/spreadsheets/d/%s/export?gid=%s&format=csv", session->creds->username, session->creds->password);
         goto cleanup;
     }
-    debug(3, "Populated postfields %s\n", postfields);
+    debug(1, "Populated URL %s", url);
 
-    bool res = submit_curl_task("https://beta.2ch.hk/moder/login?json=1", "no cookie", &s, postfields);
+    bool res = submit_curl_task(url, NULL, &s, NULL);
     if (res) {
         cJSON* parse_result = NULL;
         if ((parse_result = cJSON_Parse(s.ptr)) == NULL) {
@@ -158,8 +147,8 @@ ssize_t session_init(session_creds_t* creds, session_t* session)
             goto cleanup;
         }
 
-        session->creds = creds;
-        dvach_populate_session(session, parse_result);
+//        session->creds = creds;
+//        dvach_populate_session(session, parse_result);
 
         cJSON_Delete(parse_result); // cjson checks for nullptr here
     } else {
@@ -167,12 +156,12 @@ ssize_t session_init(session_creds_t* creds, session_t* session)
         goto cleanup;
     }
 
-    safe_free((void**)&postfields);
+    safe_free((void**)&url);
     safe_free((void**)&s.ptr);
     return EXIT_SUCCESS;
 
 cleanup:
-    safe_free((void**)&postfields);
+    safe_free((void**)&url);
     safe_free((void**)&s.ptr);
     return EXIT_FAILURE;
 }

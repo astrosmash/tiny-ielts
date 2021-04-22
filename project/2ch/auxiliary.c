@@ -12,23 +12,23 @@ const char* get_homedir(void)
     return homedir;
 }
 
-char* creds_file_path(size_t mode)
+char* config_file_path(size_t mode)
 {
     const char* homedir = get_homedir();
-    const char* account_subdir = "/.mod2ch";
-    const char* account_file = "/.creds";
+    const char* config_subdir = "/.tiny-ielts";
+    const char* config_file = "/.config";
 
-    size_t fullpathsize = strlen(homedir) + strlen(account_subdir) + strlen(account_file) + 1;
+    size_t fullpathsize = strlen(homedir) + strlen(config_subdir) + strlen(config_file) + 1;
     char* fullpath = malloc_memset(fullpathsize);
 
     strncpy(fullpath, homedir, strlen(homedir));
-    strncat(fullpath, account_subdir, strlen(account_subdir));
-    debug(3, "Determined credentials directory to be %s\n", fullpath);
+    strncat(fullpath, config_subdir, strlen(config_subdir));
+    debug(3, "Determined configuration directory to be %s\n", fullpath);
 
     size_t res = 0;
     struct stat stat_buf = { 0 };
     if ((res = stat(fullpath, &stat_buf))) {
-        debug(4, "Cannot access credentials directory %s (%s)\n", fullpath, strerror(errno));
+        debug(4, "Cannot access configuration directory %s (%s)\n", fullpath, strerror(errno));
 
         if (mode & NEED_TO_CREATE) {
             if ((stat_buf.st_mode & S_IFMT) != S_IFDIR) {
@@ -47,11 +47,11 @@ char* creds_file_path(size_t mode)
         }
     }
 
-    strncat(fullpath, account_file, strlen(account_file));
-    debug(3, "Determined credentials file to be %s\n", fullpath);
+    strncat(fullpath, config_file, strlen(config_file));
+    debug(3, "Determined configuration file to be %s\n", fullpath);
 
     if ((res = stat(fullpath, &stat_buf))) {
-        debug(4, "Cannot access credentials file %s (%s)\n", fullpath, strerror(errno));
+        debug(4, "Cannot access configuration file %s (%s)\n", fullpath, strerror(errno));
 
         if (mode & NEED_TO_CREATE) {
             if ((stat_buf.st_mode & S_IFMT) != S_IFREG) {
@@ -188,6 +188,7 @@ static CURL* dvach_curl_init(struct curl_string* s, const char* cookie)
     }
 
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_func);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, s);
 
@@ -198,7 +199,6 @@ static CURL* dvach_curl_init(struct curl_string* s, const char* cookie)
 static bool submit_curl_task(const char* url, const char* cookie, struct curl_string* s, void* postfields)
 {
     assert(url);
-    assert(cookie);
     assert(s);
 
     CURL* curl = dvach_curl_init(s, cookie);

@@ -32,7 +32,7 @@ enum {
 } creds_file_modes;
 
 extern const char* get_homedir(void);
-extern char* creds_file_path(size_t);
+extern char* config_file_path(size_t);
 extern void* task_manager(size_t, void*, size_t);
 extern struct g_callback_task* create_new_task(size_t, void*);
 

@@ -44,7 +44,7 @@ Gui* Gui_Construct(void)
 
     // Just check if a file exists without removing/creating it.
     // Necessary checks will be performed later
-    if (creds_file_path(NEED_TO_CHECK) && _Gui_DrawMainScreen(my_app_config)) {
+    if (config_file_path(NEED_TO_CHECK) && _Gui_DrawMainScreen(my_app_config)) {
         // Session populated
     } else {
         _Gui_DrawLoginInvitationScreen(my_app_config);
@@ -135,15 +135,15 @@ static void _Gui_GetAuthText(GtkEntry* entry, gpointer data)
             assert(text_len < MAX_CRED_LENGTH);
 
             if (text_len) {
-                if (strcmp(type, "username_entry") == 0) {
-                    debug(3, "Read username %s\n", text);
+                if (strcmp(type, "spreadsheet_key_entry") == 0) {
+                    debug(3, "Read Spreadsheet Key %s\n", text);
                     if (strlen(creds->username)) {
                         memset(creds->username, 0, MAX_CRED_LENGTH);
                     }
                     strncpy(creds->username, text, text_len);
 
-                } else if (strcmp(type, "password_entry") == 0) {
-                    debug(3, "Read password %s\n", text);
+                } else if (strcmp(type, "spreadsheet_gid_entry") == 0) {
+                    debug(3, "Read Spreadsheet GID %s\n", text);
                     if (strlen(creds->password)) {
                         memset(creds->password, 0, MAX_CRED_LENGTH);
                     }
@@ -161,7 +161,7 @@ static void _Gui_GetAuthText(GtkEntry* entry, gpointer data)
 
     if (strlen(session->cookie) == 0) {
         if (strlen(creds->username) && strlen(creds->password)) {
-            debug(5, "Username length %zu, password length %zu\n", strlen(creds->username), strlen(creds->password));
+            debug(5, "Spreadsheet Key length %zu, Spreadsheet GID length %zu\n", strlen(creds->username), strlen(creds->password));
 
             if (!populate_file_from_session(creds, session)) {
                 return;
