@@ -62,23 +62,23 @@ bool populate_session_from_file(session_t* session)
 }
 
 // Refresh cookie and other contents in the file using session data
-bool populate_file_from_session(session_creds_t* creds, session_t* session)
+bool populate_file_from_session(spreadsheet_t* spreadsheet, session_t* session)
 {
-    assert(creds);
+    assert(spreadsheet);
     assert(session);
 
-    debug(3, "Trying to download CSV with Key %s GID %s\n", creds->username, creds->password);
+    debug(3, "Trying to download CSV with Key %s GID %s\n", spreadsheet->key, spreadsheet->gid);
 
     ssize_t session_res = 0;
-    if ((session_res = session_init(creds, session))) {
-        debug(1, "Was not able to download CSV with Key %s GID %s (%zd)\n", creds->username, creds->password, session_res);
+    if ((session_res = session_init(spreadsheet, session))) {
+        debug(1, "Was not able to download CSV with Key %s GID %s (%zd)\n", spreadsheet->key, spreadsheet->gid, session_res);
         return false;
     }
 
     // No file was present and we are authenticating. Create a file
     char* fullpath = config_file_path(NEED_TO_CREATE);
     assert(fullpath);
-    debug(3, "Writing credentials to %s\n", fullpath);
+    debug(3, "Writing configuration to %s\n", fullpath);
 
     const char* mode = "w";
     FILE* file = NULL;
@@ -91,16 +91,7 @@ bool populate_file_from_session(session_creds_t* creds, session_t* session)
 
     // Write to credentials file
     char* content = malloc_memset(MAX_ARBITRARY_CHAR_LENGTH);
-    snprintf(content, MAX_ARBITRARY_CHAR_LENGTH - 2, "cookie = %s\nusername = %s\npassword = %s\n", session->cookie, session->creds->username, session->creds->password);
-
-    for (size_t i = 0; i <= MAX_NUM_OF_BOARDS; ++i) {
-        if (strlen(session->moder.boards[i])) {
-            char* add = malloc_memset(MAX_ARBITRARY_CHAR_LENGTH);
-            snprintf(add, MAX_ARBITRARY_CHAR_LENGTH, "board = %s\n", session->moder.boards[i]);
-            strncat(content, add, strlen(add));
-            safe_free((void**)&add);
-        }
-    }
+    snprintf(content, MAX_ARBITRARY_CHAR_LENGTH - 2, "key = %s\ngid = %s\n", spreadsheet->key, spreadsheet->gid);
 
     size_t ret = fwrite(content, sizeof(char), strlen(content), file);
     if (!ret) {
@@ -118,9 +109,9 @@ bool populate_file_from_session(session_creds_t* creds, session_t* session)
 }
 
 // Uses given credentials to login and obtain mod info to be later re-used.
-ssize_t session_init(session_creds_t* creds, session_t* session)
+ssize_t session_init(spreadsheet_t* spreadsheet, session_t* session)
 {
-    assert(creds);
+    assert(spreadsheet);
     assert(session);
 
     struct curl_string s = { .len = 0 };
@@ -128,41 +119,40 @@ ssize_t session_init(session_creds_t* creds, session_t* session)
     s.ptr[0] = '\0';
 
     char* url = malloc_memset(MAX_CRED_LENGTH);
-    if (!snprintf(url, MAX_CRED_LENGTH - 2, "https://docs.google.com/spreadsheets/d/%s/export?gid=%s&format=csv", session->creds->username, session->creds->password)) {
-        debug(1, "Cannot assemble URL https://docs.google.com/spreadsheets/d/%s/export?gid=%s&format=csv", session->creds->username, session->creds->password);
+    if (!snprintf(url, MAX_CRED_LENGTH - 2, "https://docs.google.com/spreadsheets/d/%s/export?gid=%s&format=csv", spreadsheet->key, spreadsheet->gid)) {
+        debug(1, "Cannot assemble URL https://docs.google.com/spreadsheets/d/%s/export?gid=%s&format=csv", spreadsheet->key, spreadsheet->gid);
         goto cleanup;
     }
     debug(1, "Populated URL %s", url);
 
     bool res = submit_curl_task(url, NULL, &s, NULL);
     if (res) {
-        cJSON* parse_result = NULL;
-        if ((parse_result = cJSON_Parse(s.ptr)) == NULL) {
-
-            const char* cjson_err = cJSON_GetErrorPtr();
-            if (cjson_err) {
-                debug(1, "cJSON err: %s", cjson_err);
-            }
-            cJSON_Delete(parse_result); // cjson checks for nullptr here
+        translation_response_t* translations = NULL;
+        if ((translations = parse_csv(s.ptr)) == NULL) {
+            debug(1, "got translations error ", 123);
             goto cleanup;
         }
 
-//        session->creds = creds;
-//        dvach_populate_session(session, parse_result);
+        //        process_translated_csv(session, parse_result);
+        //        dvach_populate_session(session, parse_result);
 
-        cJSON_Delete(parse_result); // cjson checks for nullptr here
+        for (size_t i = translations->num_of_translations; i > 0; --i) {
+            debug(1, "Cleaning up translation #%zu at %p\n", i, (void*)translations->result[i]);
+            safe_free((void**)&translations->result[i]);
+        }
+        safe_free((void**)&translations);
     } else {
         debug(1, "submit_curl_task failed: %u ", res);
         goto cleanup;
     }
 
     safe_free((void**)&url);
-    safe_free((void**)&s.ptr);
+    //    safe_free((void**)&s.ptr);
     return EXIT_SUCCESS;
 
 cleanup:
     safe_free((void**)&url);
-    safe_free((void**)&s.ptr);
+    //    safe_free((void**)&s.ptr);
     return EXIT_FAILURE;
 }
 

@@ -5,6 +5,11 @@ typedef struct {
 } session_creds_t;
 
 typedef struct {
+    char key[MAX_CRED_LENGTH];
+    char gid[MAX_CRED_LENGTH];
+} spreadsheet_t;
+
+typedef struct {
     session_creds_t* creds;
 
     char cookie[MAX_ARBITRARY_CHAR_LENGTH];

@@ -11,6 +11,7 @@ Gui* Gui_Construct(void)
     GuiRuntimeConfig* my_app_config = get_gui_runtime_config(true);
     session_t* session = get_session(true);
     session_creds_t* creds = get_session_creds(true);
+    spreadsheet_t* spreadsheet = get_spreadsheet(true);
 
     session->creds = creds;
     my_app_config->WorkerData.session = session;
@@ -121,7 +122,7 @@ static void _Gui_GetAuthText(GtkEntry* entry, gpointer data)
     assert(data);
     struct GtkEntries* entries = data;
 
-    session_creds_t* creds = get_session_creds(false);
+    spreadsheet_t* spreadsheet = get_spreadsheet(false);
 
     for (size_t i = 0; i < NUMBER_OF_AUTH_FORMS; i++) {
         assert(entries->entry[i]);
@@ -137,17 +138,17 @@ static void _Gui_GetAuthText(GtkEntry* entry, gpointer data)
             if (text_len) {
                 if (strcmp(type, "spreadsheet_key_entry") == 0) {
                     debug(3, "Read Spreadsheet Key %s\n", text);
-                    if (strlen(creds->username)) {
-                        memset(creds->username, 0, MAX_CRED_LENGTH);
+                    if (strlen(spreadsheet->key)) {
+                        memset(spreadsheet->key, 0, MAX_CRED_LENGTH);
                     }
-                    strncpy(creds->username, text, text_len);
+                    strncpy(spreadsheet->key, text, text_len);
 
                 } else if (strcmp(type, "spreadsheet_gid_entry") == 0) {
                     debug(3, "Read Spreadsheet GID %s\n", text);
-                    if (strlen(creds->password)) {
-                        memset(creds->password, 0, MAX_CRED_LENGTH);
+                    if (strlen(spreadsheet->gid)) {
+                        memset(spreadsheet->gid, 0, MAX_CRED_LENGTH);
                     }
-                    strncpy(creds->password, text, text_len);
+                    strncpy(spreadsheet->gid, text, text_len);
                 } else {
                     debug(1, "text_type unknown %s, doing nothing\n", type);
                 }
@@ -159,22 +160,18 @@ static void _Gui_GetAuthText(GtkEntry* entry, gpointer data)
     session_t* session = get_session(false);
     GuiRuntimeConfig* my_app_config = get_gui_runtime_config(false);
 
-    if (strlen(session->cookie) == 0) {
-        if (strlen(creds->username) && strlen(creds->password)) {
-            debug(5, "Spreadsheet Key length %zu, Spreadsheet GID length %zu\n", strlen(creds->username), strlen(creds->password));
+    if (strlen(spreadsheet->key) && strlen(spreadsheet->gid)) {
+        debug(5, "Spreadsheet Key length %zu, Spreadsheet GID length %zu\n", strlen(spreadsheet->key), strlen(spreadsheet->gid));
 
-            if (!populate_file_from_session(creds, session)) {
-                return;
-            }
-
-            if (!_Gui_DrawMainScreen(my_app_config)) {
-                return;
-            }
-
-            gtk_widget_show_all(my_app_config->window);
-            safe_free((void**)&entries);
+        if (!populate_file_from_session(spreadsheet, session)) {
+            return;
         }
-    } else {
-        debug(4, "Will not trigger credentials refresh - have session present cookie %s user %s pass %s. Just re-launch an app to relogin\n", session->cookie, session->creds->username, session->creds->password);
+
+        if (!_Gui_DrawMainScreen(my_app_config)) {
+            return;
+        }
+
+        gtk_widget_show_all(my_app_config->window);
+        safe_free((void**)&entries);
     }
 }

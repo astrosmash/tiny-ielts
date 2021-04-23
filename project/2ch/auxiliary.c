@@ -196,6 +196,121 @@ static CURL* dvach_curl_init(struct curl_string* s, const char* cookie)
     return curl;
 }
 
+static bool populate_translation(char* what, translation_t* translation)
+{
+    assert(what);
+    assert(translation);
+
+    struct {
+        char* lang_code;
+        char* lang_name;
+    } lang_mapping[] = {
+        { "ua", "украинский" },
+        { "ru", "русский" },
+        { "en", "английский" }
+    };
+
+    char* strtok_saveptr = NULL;
+    char* tokenized = strtok_r(what, ",", &strtok_saveptr);
+
+    size_t processed_words = 0; // 4 in a row.
+    while (tokenized != NULL) {
+        size_t tok_len = strlen(tokenized);
+        debug(3, "Parsing tokenized: %s (len %zu) processed_words %zu\n", tokenized, tok_len, processed_words);
+
+        switch (processed_words) {
+        case 0:
+            for (size_t i = 0; i < sizeof(lang_mapping) / sizeof(*lang_mapping); ++i) {
+                if (strcmp(lang_mapping[i].lang_name, tokenized) == 0) {
+                    size_t len = strlen(lang_mapping[i].lang_code);
+                    strncpy(translation->or_lang_code, lang_mapping[i].lang_code, len);
+                    translation->or_lang_code[len] = '\0';
+                    break;
+                }
+            }
+            break;
+        case 1:
+            for (size_t i = 0; i < sizeof(lang_mapping) / sizeof(*lang_mapping); ++i) {
+                if (strcmp(lang_mapping[i].lang_name, tokenized) == 0) {
+                    size_t len = strlen(lang_mapping[i].lang_code);
+                    strncpy(translation->tr_lang_code, lang_mapping[i].lang_code, len);
+                    translation->tr_lang_code[len] = '\0';
+                    break;
+                }
+            }
+            break;
+        case 2:
+            strncpy(translation->or_word, tokenized, tok_len);
+            translation->or_word[tok_len] = '\0';
+            break;
+        case 3:
+            strncpy(translation->tr_word, tokenized, tok_len - 1); // trim last ^M from strtok
+            translation->tr_word[tok_len - 1] = '\0';
+            break;
+        default:
+            debug(3, "Unknown processed_words: %zu\n", processed_words);
+            return false;
+        }
+
+        tokenized = strtok_r(NULL, ",", &strtok_saveptr);
+        ++processed_words;
+    }
+    return true;
+}
+
+translation_response_t* parse_csv(char* csv)
+{
+    assert(csv);
+    translation_response_t* response = malloc_memset(sizeof(translation_t));
+    size_t translated_lines = 0;
+
+    char* strtok_saveptr = NULL;
+    char* line = strtok_r(csv, "\n", &strtok_saveptr);
+    while (line != NULL) {
+        char* newstr = malloc_memset(strlen(line) + 2);
+        size_t commas = 0;
+        size_t populated_chars = 0;
+
+        for (size_t i = 0; i <= strlen(line); ++i) {
+            if (*(line + i) == '"') {
+                debug(3, "Skipping %c at %p \n", *(line + i), (void*)(line + i));
+                continue;
+            }
+            if (*(line + i) == ',') {
+                if (commas > 2) {
+                    debug(3, "Skipping %c at %p \n", *(line + i), (void*)(line + i));
+                    continue;
+                }
+                ++commas;
+            }
+
+            *(newstr + populated_chars) = *(line + i);
+            ++populated_chars;
+        }
+        *(newstr + populated_chars) = '\0'; // Last char
+        debug(3, "Parsing line: %s\n\n", newstr);
+
+        assert(translated_lines <= MAX_TRANSLATIONS);
+        translation_t* translation = malloc_memset(sizeof(translation_t)); // to be freed by caller
+        assert(populate_translation(newstr, translation));
+
+        response->num_of_translations = translated_lines;
+        response->result[translated_lines] = translation;
+        debug(3, "Populated translation #%zu(%p): %s(%s) > %s(%s)\n",
+            translated_lines,
+            (void*)translation,
+            response->result[translated_lines]->or_word,
+            response->result[translated_lines]->or_lang_code,
+            response->result[translated_lines]->tr_word,
+            response->result[translated_lines]->tr_lang_code);
+        translated_lines++;
+
+        safe_free((void**)&newstr);
+        line = strtok_r(NULL, "\n", &strtok_saveptr);
+    }
+    return response;
+}
+
 static bool submit_curl_task(const char* url, const char* cookie, struct curl_string* s, void* postfields)
 {
     assert(url);

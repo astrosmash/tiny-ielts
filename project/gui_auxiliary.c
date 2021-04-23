@@ -5,7 +5,7 @@ GuiRuntimeConfig* get_gui_runtime_config(bool need_to_allocate)
     if (need_to_allocate) {
         my_app_config = malloc_memset(sizeof(GuiRuntimeConfig));
     }
-    assert(my_app_config);
+
     debug(3, "Returning %p, allocated = %u\n", (void*)my_app_config, need_to_allocate);
     return my_app_config;
 }
@@ -17,9 +17,21 @@ session_t* get_session(bool need_to_allocate)
     if (need_to_allocate) {
         session = malloc_memset(sizeof(session_t));
     }
-    assert(session);
+
     debug(3, "Returning %p, allocated = %u\n", (void*)session, need_to_allocate);
     return session;
+}
+
+spreadsheet_t* get_spreadsheet(bool need_to_allocate)
+{
+    static spreadsheet_t* spreadsheet = NULL;
+
+    if (need_to_allocate) {
+        spreadsheet = malloc_memset(sizeof(spreadsheet_t));
+    }
+
+    debug(3, "Returning %p, allocated = %u\n", (void*)spreadsheet, need_to_allocate);
+    return spreadsheet;
 }
 
 session_creds_t* get_session_creds(bool need_to_allocate)
@@ -29,7 +41,7 @@ session_creds_t* get_session_creds(bool need_to_allocate)
     if (need_to_allocate) {
         creds = malloc_memset(sizeof(session_creds_t));
     }
-    assert(creds);
+
     debug(3, "Returning %p, allocated = %u\n", (void*)creds, need_to_allocate);
     return creds;
 }

@@ -35,7 +35,7 @@
 #define DEBUG 1
 #define DEBUG_LEVEL 5
 
-#define MAX_ALLOCABLE_MEM_BLOCKS 4096
+#define MAX_ALLOCABLE_MEM_BLOCKS 10240
 
 enum {
     ALLOCATION = 1 << 0,
@@ -48,7 +48,7 @@ typedef enum {
     true
 } bool;
 
-bool track_allocated_blocks(void*, size_t);
+static bool track_allocated_blocks(void*, size_t);
 void* malloc_memset(size_t);
 void safe_free(void**);
 

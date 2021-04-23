@@ -1,29 +1,63 @@
 #include "main.h"
 
-bool track_allocated_blocks(void* ptr, size_t flag)
+static bool track_allocated_blocks(void* ptr, size_t flag)
 {
     static void* allocated_blocks[MAX_ALLOCABLE_MEM_BLOCKS] = { NULL };
     static size_t allocated_counter = 0;
+    static size_t freed_pos = 0;
 
     if (!(flag & GLOBAL_CLEANUP)) {
         assert(ptr);
         if (flag & ALLOCATION) { // This is an allocated block. Insert it so we can track it later, if it was freed or not
-            assert(allocated_counter <= MAX_ALLOCABLE_MEM_BLOCKS);
-            allocated_blocks[allocated_counter] = ptr;
-            debug(4, "Inserted %p at pos #%zu\n", ptr, allocated_counter);
-            ++allocated_counter;
-            return true;
+            if (freed_pos && !allocated_blocks[freed_pos]) { // We see position with NULL that was previously removed, use it
+                debug(4, "Will insert %p at cached free pos #%zu\n", ptr, freed_pos);
+                allocated_blocks[freed_pos] = ptr;
+                return true;
+            }
 
-        } else if (flag & REMOVAL) { // this is free func, let's show what we have so it compares
+            ++allocated_counter;
+            assert(allocated_counter <= MAX_ALLOCABLE_MEM_BLOCKS);
+
+            if (!allocated_blocks[allocated_counter]) {
+                allocated_blocks[allocated_counter] = ptr;
+            } else {
+                debug(4, "Will not insert %p at pos #%zu - found %p there. Will try +1\n", ptr, allocated_counter, allocated_blocks[allocated_counter]);
+
+                ++allocated_counter;
+                assert(allocated_counter <= MAX_ALLOCABLE_MEM_BLOCKS);
+
+                if (!allocated_blocks[allocated_counter]) {
+                    allocated_blocks[allocated_counter] = ptr;
+                } else {
+                    debug(4, "+1 failed! Will not insert %p at pos #%zu - found %p there.\n", ptr, allocated_counter, allocated_blocks[allocated_counter]);
+                    return false;
+                }
+            }
+
+            debug(4, "Inserted %p at pos #%zu\n", ptr, allocated_counter);
+            return true;
+        }
+
+        if (flag & REMOVAL) { // this is free func, let's show what we have so it compares
+            if (freed_pos && allocated_blocks[freed_pos] == ptr) {
+                debug(5, "Looking for %p, found %p at cached pos #%zu\n", ptr, allocated_blocks[freed_pos], freed_pos);
+                allocated_blocks[freed_pos] = NULL;
+                return true;
+            }
+
             for (size_t i = allocated_counter; i > 0; --i) {
                 debug(5, "Looking for %p, found %p at pos #%zu\n", ptr, allocated_blocks[i], i);
                 if (ptr == allocated_blocks[i]) {
                     allocated_blocks[i] = NULL;
-                    debug(4, "Removed %p at pos #%zu\n", ptr, allocated_counter);
+                    freed_pos = i;
+                    debug(4, "Removed %p at pos #%zu\n", ptr, i);
                     --allocated_counter;
+                    debug(4, "Now allocated: %zu\n", allocated_counter);
                     return true;
                 }
             }
+            debug(5, "REMOVAL was set, cannot find %p\n", ptr);
+            return false;
         }
     } else {
         for (size_t i = allocated_counter; i > 0; --i) {

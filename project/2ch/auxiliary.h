@@ -31,6 +31,18 @@ enum {
     NEED_TO_DELETE = 1 << 2
 } creds_file_modes;
 
+typedef struct {
+    char or_lang_code[MAX_LANG_LENGTH];
+    char tr_lang_code[MAX_LANG_LENGTH];
+    char or_word[MAX_ARBITRARY_CHAR_LENGTH];
+    char tr_word[MAX_ARBITRARY_CHAR_LENGTH];
+} translation_t;
+
+typedef struct {
+    translation_t* result[MAX_TRANSLATIONS];
+    size_t num_of_translations;
+} translation_response_t;
+
 extern const char* get_homedir(void);
 extern char* config_file_path(size_t);
 extern void* task_manager(size_t, void*, size_t);
