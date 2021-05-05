@@ -136,11 +136,73 @@ ssize_t session_init(spreadsheet_t* spreadsheet, session_t* session)
         //        process_translated_csv(session, parse_result);
         //        dvach_populate_session(session, parse_result);
 
-        for (size_t i = translations->num_of_translations; i > 0; --i) {
-            debug(1, "Cleaning up translation #%zu at %p\n", i, (void*)translations->result[i]);
-            safe_free((void**)&translations->result[i]);
+
+        DB *db_p = NULL;
+        size_t db_ret = 0;
+
+        if ((db_ret = db_create(&db_p, NULL, 0))) {
+            debug(1, "Cannot db_create (%zu)\n", db_ret);
+            goto cleanup; // Handle error
         }
-        safe_free((void**)&translations);
+
+        assert(db_p);
+
+        size_t db_flags = DB_CREATE;
+        size_t db_mode = DB_HASH;
+        const char* db_file = "ielts.db";
+
+        if ((db_ret = db_p->open(db_p, NULL, db_file, NULL, db_mode, db_flags, 0600))) {
+            debug(1, "Cannot db_p->open (%zu)\n", db_ret);
+            goto cleanup; // Handle error
+        }
+
+        for (size_t i = translations->num_of_translations; i > 0; --i) {
+
+            DBT key;
+            memset(&key, 0, sizeof (key));
+
+            DBT value;
+            memset(&value, 0, sizeof (value));
+
+
+            key.data = &i;
+            key.size = sizeof (i);
+
+            value.data = translations->result[i];
+            value.size = sizeof (translations->result[i]);
+
+            if ((db_ret = db_p->put(db_p, NULL, &key, &value, 0))) {
+                debug(1, "Cannot db_p->put (%zu)\n", db_ret);
+                goto cleanup; // Handle error
+            }
+
+            if ((db_ret = db_p->get(db_p, NULL, &key, &value, 0))) {
+                debug(1, "Cannot db_p->get (%zu)\n", db_ret);
+                goto cleanup; // Handle error
+            }
+
+//            if ((db_ret = db_p->del(db_p, NULL, &key, 0))) {
+//                debug(1, "Cannot db_p->del (%zu)\n", db_ret);
+//                goto cleanup; // Handle error
+//            }
+//
+//            if ((db_ret = db_p->get(db_p, NULL, &key, &value, 0))) {
+//                debug(1, "Cannot db_p->get (%zu)\n", db_ret);
+//                goto cleanup; // Handle error
+//            }
+
+            debug(1, "Cleaning up translation #%zu at %p\n", i, (void*) translations->result[i]);
+            safe_free((void**) &translations->result[i]);
+        }
+
+        safe_free((void**) &translations);
+
+        if ((db_ret = db_p->close(db_p, 0))) {
+            debug(1, "Cannot db_p->close (%zu)\n", db_ret);
+            goto cleanup; // Handle error
+        }
+
+
     } else {
         debug(1, "submit_curl_task failed: %u ", res);
         goto cleanup;
